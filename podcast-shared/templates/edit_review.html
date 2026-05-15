@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>__TITLE__</title>
+<style>
+:root {
+  --blue: #3b82f6;
+  --green: #10b981;
+  --red: #ef4444;
+  --amber: #f59e0b;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --sidebar-w: 250px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--gray-50);
+  color: var(--gray-800);
+  line-height: 1.6;
+}
+
+/* ── Audio Bar (fixed top) ───────────────────────────── */
+.audio-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  background: white; border-bottom: 1px solid var(--gray-200);
+  box-shadow: 0 1px 3px rgba(0,0,0,.1);
+  padding: 8px 16px;
+}
+.audio-bar-inner {
+  max-width: 1400px; margin: 0 auto;
+  display: flex; gap: 12px; align-items: center;
+}
+.audio-file-input { font-size: 12px; max-width: 180px; }
+.play-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: none;
+  background: var(--blue); color: white; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 14px;
+}
+.play-btn:hover { background: #2563eb; }
+.play-btn.playing { background: var(--red); }
+.progress-wrap {
+  flex: 1; display: flex; align-items: center; gap: 6px; min-width: 0;
+}
+.progress-bar {
+  flex: 1; height: 6px; background: var(--gray-200);
+  border-radius: 3px; cursor: pointer; position: relative; min-width: 80px;
+}
+.progress-fill {
+  height: 100%; background: var(--blue); border-radius: 3px;
+  width: 0%; transition: width .1s;
+}
+.time-display {
+  font-size: 11px; color: var(--gray-500); white-space: nowrap;
+  font-variant-numeric: tabular-nums; min-width: 80px;
+}
+.speed-btn {
+  font-size: 11px; padding: 2px 6px;
+  border: 1px solid var(--gray-300); border-radius: 4px;
+  background: white; cursor: pointer; color: var(--gray-600);
+}
+.speed-btn:hover { background: var(--gray-100); }
+.export-btn {
+  font-size: 12px; padding: 6px 14px; border: none; border-radius: 6px;
+  background: #059669; color: white; cursor: pointer; font-weight: 600;
+  white-space: nowrap;
+}
+.export-btn:hover { background: #047857; }
+
+/* ── Stats Bar ───────────────────────────────────────── */
+.stats-bar {
+  margin-top: 52px; background: white;
+  border-bottom: 1px solid var(--gray-200); padding: 10px 16px;
+}
+.stats-inner {
+  max-width: 1400px; margin: 0 auto;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.stat-card {
+  background: var(--gray-50); border: 1px solid var(--gray-200);
+  border-radius: 8px; padding: 6px 12px; min-width: 90px;
+}
+.stat-value { font-size: 18px; font-weight: 700; color: var(--gray-900); }
+.stat-label { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: .05em; }
+.stat-card.dynamic { border-color: #059669; background: #f0fdf4; }
+.stat-card.dynamic .stat-value { color: #059669; }
+
+/* ── Filter Bar ──────────────────────────────────────── */
+.filter-bar {
+  background: white; border-bottom: 1px solid var(--gray-200);
+  padding: 8px 16px; position: sticky; top: 52px; z-index: 999;
+}
+.filter-inner {
+  max-width: 1400px; margin: 0 auto;
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+.filter-label {
+  font-size: 11px; font-weight: 600; color: var(--gray-500); margin-right: 2px;
+}
+.filter-pill {
+  font-size: 12px; padding: 4px 10px;
+  border: 1px solid var(--gray-300); border-radius: 16px;
+  background: white; cursor: pointer; color: var(--gray-600);
+  transition: all .15s;
+}
+.filter-pill:hover { border-color: var(--gray-400); background: var(--gray-50); }
+.filter-pill.active { background: var(--blue); color: white; border-color: var(--blue); }
+.filter-sep { width: 1px; height: 20px; background: var(--gray-300); margin: 0 4px; }
+.filter-search {
+  font-size: 12px; padding: 4px 10px; border: 1px solid var(--gray-300);
+  border-radius: 16px; width: 160px; outline: none;
+}
+.filter-search:focus { border-color: var(--blue); }
+.undo-btn {
+  font-size: 12px; padding: 4px 10px; border: 1px solid var(--gray-300);
+  border-radius: 6px; background: white; cursor: pointer; color: var(--gray-600);
+}
+.undo-btn:hover { background: var(--gray-100); }
+.undo-btn:disabled { opacity: .4; cursor: default; }
+
+/* ── Layout ──────────────────────────────────────────── */
+.main-layout {
+  display: flex; max-width: 1400px; margin: 0 auto; min-height: calc(100vh - 160px);
+}
+
+/* ── Sidebar ─────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w); flex-shrink: 0;
+  background: white; border-right: 1px solid var(--gray-200);
+  overflow-y: auto; position: sticky; top: 96px;
+  height: calc(100vh - 96px); padding: 8px 0;
+}
+.sidebar-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; cursor: pointer; font-size: 12px;
+  border-left: 3px solid transparent; transition: background .1s;
+}
+.sidebar-item:hover { background: var(--gray-100); }
+.sidebar-item.active { background: #eff6ff; border-left-color: var(--blue); }
+.sidebar-item.cut { opacity: .4; text-decoration: line-through; }
+.sidebar-item.selected { background: #dbeafe; }
+.sidebar-item.suggested { background: #fefce8; border-left-color: var(--amber); }
+.sidebar-num { color: var(--gray-400); font-variant-numeric: tabular-nums; min-width: 24px; text-align: right; }
+.sidebar-badge {
+  font-size: 9px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  color: white; flex-shrink: 0;
+}
+.sidebar-badge.host { background: var(--blue); }
+.sidebar-badge.guest { background: var(--green); }
+.sidebar-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+/* ── Editor ──────────────────────────────────────────── */
+.editor { flex: 1; padding: 16px; min-width: 0; }
+
+/* Segment block */
+.segment {
+  background: white; border: 1px solid var(--gray-200); border-radius: 8px;
+  margin-bottom: 8px; border-left: 4px solid var(--gray-300);
+  transition: all .15s;
+}
+.segment.host { border-left-color: var(--blue); }
+.segment.guest { border-left-color: var(--green); }
+.segment.cut { background: #fef2f2; opacity: .6; }
+.segment.cut .seg-text { text-decoration: line-through; color: var(--gray-400); }
+.segment.moved { background: #fffbeb; }
+.segment.selected { outline: 2px solid var(--blue); outline-offset: -2px; }
+.segment.suggested-cut { background: #fefce8; border-left-color: var(--amber) !important; opacity: .7; }
+.segment.suggested-cut .seg-text { text-decoration: line-through; color: #a1a1aa; }
+.segment.playing { box-shadow: 0 0 0 2px var(--blue); animation: pulse 1.5s ease-in-out infinite; }
+.segment.drag-over { border-top: 3px solid var(--blue); }
+.segment.key-moment { border-left-color: #d97706 !important; }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--blue); }
+  50% { box-shadow: 0 0 0 4px rgba(59,130,246,.3); }
+}
+
+.seg-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-bottom: 1px solid var(--gray-100);
+  flex-wrap: wrap;
+}
+.drag-handle {
+  cursor: grab; color: var(--gray-400); font-size: 16px;
+  user-select: none; flex-shrink: 0;
+}
+.drag-handle:active { cursor: grabbing; }
+.seg-speaker {
+  font-size: 12px; font-weight: 600; padding: 2px 8px;
+  border-radius: 4px; color: white; cursor: pointer;
+}
+.seg-speaker.host { background: var(--blue); }
+.seg-speaker.guest { background: var(--green); }
+.seg-time { font-size: 11px; color: var(--gray-400); }
+.seg-id { font-size: 10px; color: var(--gray-300); }
+.seg-source {
+  font-size: 9px; padding: 1px 5px; border-radius: 3px;
+  background: var(--gray-100); color: var(--gray-500);
+}
+.seg-actions { display: flex; gap: 4px; margin-left: auto; }
+
+.btn {
+  font-size: 11px; padding: 3px 8px; border: 1px solid var(--gray-300);
+  border-radius: 4px; background: white; cursor: pointer; color: var(--gray-600);
+}
+.btn:hover { background: var(--gray-100); }
+.btn-danger { border-color: #fca5a5; color: var(--red); }
+.btn-danger:hover { background: #fef2f2; }
+.btn-danger.active { background: var(--red); color: white; border-color: var(--red); }
+.btn-primary { background: var(--blue); color: white; border-color: var(--blue); }
+.btn-primary:hover { background: #2563eb; }
+
+.seg-play-btn {
+  background: none; border: none; cursor: pointer; font-size: 14px;
+  color: var(--gray-400); padding: 2px;
+}
+.seg-play-btn:hover { color: var(--blue); }
+
+.seg-body { padding: 10px 14px; }
+.seg-text {
+  font-size: 14px; line-height: 1.7; outline: none;
+  min-height: 20px; white-space: pre-wrap;
+}
+.seg-text:focus { background: #fefce8; border-radius: 4px; }
+.seg-text .struck {
+  text-decoration: line-through; background: #fce7f3; color: var(--gray-400);
+  cursor: pointer; border-radius: 2px;
+}
+
+/* Act header */
+.act-header {
+  font-size: 13px; font-weight: 700; color: var(--gray-600);
+  padding: 12px 0 4px; border-bottom: 1px solid var(--gray-200);
+  margin-bottom: 8px;
+}
+
+/* Key moment badge */
+.key-badge {
+  font-size: 10px; padding: 1px 6px; border-radius: 3px;
+  background: #fef3c7; color: #92400e; font-weight: 600;
+}
+
+/* Suggestion UI */
+.suggestion-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10px; font-weight: 700; color: #d97706;
+  background: #fef3c7; padding: 2px 8px; border-radius: 4px;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.suggestion-rationale {
+  font-size: 11px; color: #92400e; background: #fef9c3;
+  padding: 6px 10px; border-radius: 4px; margin: 4px 14px 8px;
+  line-height: 1.5;
+}
+.suggestion-banner {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 24px; background: #fefce8;
+  border-bottom: 1px solid #fde68a;
+  font-size: 13px; color: #92400e; flex-wrap: wrap;
+}
+.suggestion-banner strong { color: #78350f; }
+
+/* ── Floating toolbar (strikethrough) ────────────────── */
+.float-toolbar {
+  position: absolute; z-index: 1001;
+  background: var(--gray-800); color: white;
+  padding: 4px 8px; border-radius: 6px;
+  display: none; gap: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.25); font-size: 12px;
+}
+.float-toolbar.visible { display: flex; }
+.float-toolbar button {
+  background: none; border: none; color: white; cursor: pointer;
+  padding: 4px 8px; border-radius: 4px; font-size: 12px;
+}
+.float-toolbar button:hover { background: rgba(255,255,255,.15); }
+
+/* ── Selection popup ─────────────────────────────────── */
+.selection-popup {
+  position: fixed; z-index: 1001;
+  background: var(--gray-800); color: white;
+  padding: 8px 12px; border-radius: 8px;
+  display: none; align-items: center; gap: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.25); font-size: 13px;
+}
+.selection-popup.visible { display: flex; }
+.selection-popup .sel-count { font-weight: 600; }
+.selection-popup button {
+  padding: 5px 12px; border: none; border-radius: 5px;
+  font-size: 12px; font-weight: 500; cursor: pointer;
+}
+.sel-cut { background: var(--red); color: white; }
+.sel-cut:hover { background: #dc2626; }
+.sel-keep { background: var(--green); color: white; }
+.sel-keep:hover { background: #059669; }
+.sel-clear { background: var(--gray-600); color: white; }
+
+/* ── Final Script Preview ────────────────────────────── */
+.preview-section {
+  background: white; border: 1px solid var(--gray-200); border-radius: 8px;
+  margin-top: 16px;
+}
+.preview-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; cursor: pointer; user-select: none;
+}
+.preview-toggle:hover { background: var(--gray-50); }
+.preview-toggle h3 { font-size: 14px; font-weight: 700; color: var(--gray-700); }
+.preview-arrow { font-size: 12px; color: var(--gray-400); transition: transform .2s; }
+.preview-arrow.collapsed { transform: rotate(-90deg); }
+.preview-body { padding: 16px; max-height: 400px; overflow-y: auto; }
+.preview-body.collapsed { display: none; }
+.preview-body p { margin-bottom: 8px; font-size: 13px; line-height: 1.7; }
+.preview-body .speaker-label { font-weight: 700; font-size: 12px; }
+.preview-body del { text-decoration: line-through; color: var(--gray-400); }
+
+/* ── Toast ───────────────────────────────────────────── */
+.toast {
+  position: fixed; top: 60px; right: 16px; z-index: 2000;
+  background: var(--gray-800); color: white;
+  padding: 8px 16px; border-radius: 8px; font-size: 13px;
+  opacity: 0; transition: opacity .3s; pointer-events: none;
+}
+.toast.visible { opacity: 1; }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 900px) {
+  .sidebar { display: none; }
+  .main-layout { display: block; }
+}
+</style>
+</head>
+<body>
+
+<!-- Audio Bar -->
+<div class="audio-bar">
+  <div class="audio-bar-inner">
+    <input type="file" accept="audio/*" class="audio-file-input" id="audioFileInput" title="Load audio file">
+    <button class="play-btn" id="playBtn" onclick="togglePlay()" title="Play/Pause">&#9654;</button>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar" onclick="seekAudio(event)">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+    </div>
+    <button class="speed-btn" id="speedBtn" onclick="cycleSpeed()">1x</button>
+    <button class="export-btn" onclick="exportJSON()">&#9986; Export Edit Decision</button>
+  </div>
+</div>
+<audio id="audioEl" preload="auto" style="display:none;"></audio>
+
+<!-- Suggestion Banner (hidden by default) -->
+<div class="suggestion-banner" id="suggestionBanner" style="display:none; margin-top:52px;">
+  <span>&#x26A1;</span>
+  <span><strong id="suggestionCount">0</strong> AI-suggested cuts preloaded</span>
+  <button class="btn" onclick="acceptAllSuggestions()">Accept All</button>
+  <button class="btn" onclick="revertAllSuggestions()">Revert All</button>
+  <button class="btn" id="btnToggleRationale" onclick="toggleRationales()">Show Rationales</button>
+</div>
+
+<!-- Stats Bar -->
+<div class="stats-bar" id="statsBar">
+  <div class="stats-inner">
+    <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total</div></div>
+    <div class="stat-card dynamic"><div class="stat-value" id="statKept">0</div><div class="stat-label">Kept</div></div>
+    <div class="stat-card"><div class="stat-value" id="statCut">0</div><div class="stat-label">Cut</div></div>
+    <div class="stat-card"><div class="stat-value" id="statCutPct">0%</div><div class="stat-label">Cut %</div></div>
+    <div class="filter-sep"></div>
+    <div class="stat-card"><div class="stat-value" id="statDurTotal">0:00</div><div class="stat-label">Total Dur.</div></div>
+    <div class="stat-card"><div class="stat-value" id="statDurCut" style="color:var(--red);">0:00</div><div class="stat-label">Cut Dur.</div></div>
+    <div class="stat-card dynamic"><div class="stat-value" id="statDurRemain">0:00</div><div class="stat-label">Remaining</div></div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+  <div class="filter-inner">
+    <span class="filter-label">Show:</span>
+    <button class="filter-pill active" data-filter="all" onclick="setFilter('all')">All</button>
+    <button class="filter-pill" data-filter="kept" onclick="setFilter('kept')">Kept</button>
+    <button class="filter-pill" data-filter="cut" onclick="setFilter('cut')">Cut</button>
+    <div class="filter-sep"></div>
+    <span class="filter-label">Speaker:</span>
+    <div id="speakerFilters"></div>
+    <div class="filter-sep"></div>
+    <input type="text" class="filter-search" id="searchInput" placeholder="Search text..." oninput="scheduleSearch()">
+    <div class="filter-sep"></div>
+    <button class="undo-btn" id="undoBtn" onclick="undo()" disabled title="Undo (Ctrl+Z)">&#x21A9; Undo</button>
+    <button class="undo-btn" id="redoBtn" onclick="redo()" disabled title="Redo (Ctrl+Shift+Z)">&#x21AA; Redo</button>
+  </div>
+</div>
+
+<!-- Main Layout -->
+<div class="main-layout">
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar"></div>
+
+  <!-- Editor -->
+  <div class="editor" id="editorContainer">
+    <div id="segmentsContainer"></div>
+
+    <!-- Final Script Preview -->
+    <div class="preview-section">
+      <div class="preview-toggle" onclick="togglePreview()">
+        <h3>Final Script Preview</h3>
+        <span class="preview-arrow" id="previewArrow">&#9660;</span>
+      </div>
+      <div class="preview-body" id="previewBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating toolbar for strikethrough -->
+<div class="float-toolbar" id="floatToolbar">
+  <button onclick="strikeSelection()">&#9986; Strike out</button>
+  <button onclick="splitAtCursor()">&#9995; Split here</button>
+</div>
+
+<!-- Selection popup for multi-select -->
+<div class="selection-popup" id="selectionPopup">
+  <span class="sel-count" id="selCount">0 selected</span>
+  <button class="sel-cut" onclick="cutSelected()">Cut All</button>
+  <button class="sel-keep" onclick="keepSelected()">Keep All</button>
+  <button class="sel-clear" onclick="clearSelection()">Clear</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!--
+  SECURITY NOTE: This is a self-contained, local-only HTML file.
+  All segment data is embedded at build time by generate_edit_review.js.
+  No external data is loaded at runtime. All user-visible text is rendered
+  via DOM textContent or createTextNode (never raw HTML interpolation).
+  The container.textContent = '' pattern is used for clearing containers
+  before DOM rebuild. innerHTML is not used for user data rendering.
+-->
+<script>
+// ── Data (injected by generate_edit_review.js) ───────────────────────────
+var INITIAL_DATA = __SEGMENTS_DATA__;
+var SHOW_CONFIG = __SHOW_CONFIG__;
+
+// ── State ────────────────────────────────────────────────────────────────
+var segments = JSON.parse(JSON.stringify(INITIAL_DATA));
+var undoStack = [];
+var redoStack = [];
+var MAX_UNDO = 50;
+var currentFilter = 'all';
+var currentSpeakerFilter = null;
+var searchQuery = '';
+var selectedIndices = new Set();
+var lastClickedIdx = -1;
+var showRationales = false;
+var previewCollapsed = false;
+var audioEl = document.getElementById('audioEl');
+var audioLoaded = false;
+var isPlaying = false;
+var playingIdx = -1;
+var speeds = [1, 1.25, 1.5, 2, 0.75];
+var speedIdx = 0;
+
+// ── Save key ─────────────────────────────────────────────────────────────
+var _SAVE_KEY = 'podcast_editor_' + document.title;
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function escHtml(s) {
+  var d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmtTime(sec) {
+  if (isNaN(sec) || sec < 0) sec = 0;
+  var h = Math.floor(sec / 3600);
+  var m = Math.floor((sec % 3600) / 60);
+  var s = Math.floor(sec % 60);
+  if (h > 0) return h + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  return m + ':' + String(s).padStart(2,'0');
+}
+
+function fmtTimeHMS(sec) {
+  if (isNaN(sec) || sec < 0) sec = 0;
+  var h = Math.floor(sec / 3600);
+  var m = Math.floor((sec % 3600) / 60);
+  var s = Math.floor(sec % 60);
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+}
+
+function parseTime(ts) {
+  var parts = ts.split(':').map(Number);
+  if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+  if (parts.length === 2) return parts[0]*60 + parts[1];
+  return parts[0] || 0;
+}
+
+function getSegDuration(seg) {
+  return parseTime(seg.end_time) - parseTime(seg.start_time);
+}
+
+function getSpeakers() {
+  var set = {};
+  segments.forEach(function(s) { set[s.speaker] = true; });
+  return Object.keys(set);
+}
+
+// ── Toast ────────────────────────────────────────────────────────────────
+var _toastTimer = null;
+function showToast(msg, duration) {
+  var el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('visible');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { el.classList.remove('visible'); }, duration || 2000);
+}
+
+// ── Undo / Redo ──────────────────────────────────────────────────────────
+function saveUndo() {
+  undoStack.push(JSON.stringify(segments));
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+  updateUndoButtons();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(JSON.stringify(segments));
+  segments = JSON.parse(undoStack.pop());
+  renderAll();
+  showToast('Undo');
+  autoSave();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(JSON.stringify(segments));
+  segments = JSON.parse(redoStack.pop());
+  renderAll();
+  showToast('Redo');
+  autoSave();
+}
+
+function updateUndoButtons() {
+  document.getElementById('undoBtn').disabled = undoStack.length === 0;
+  document.getElementById('redoBtn').disabled = redoStack.length === 0;
+}
+
+// ── Auto-save (localStorage) ─────────────────────────────────────────────
+var _saveTimer = null;
+function autoSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(_doSave, 500);
+}
+
+function _doSave() {
+  try {
+    var state = segments.map(function(s) {
+      return {
+        id: s.id,
+        status: s.status,
+        muted_ranges: s.muted_ranges,
+        edited_text: s.edited_text,
+        speaker: s.speaker,
+        original_position: s.original_position,
+        final_position: s.final_position,
+        suggested: s.suggested
+      };
+    });
+    localStorage.setItem(_SAVE_KEY, JSON.stringify({
+      version: 1,
+      timestamp: Date.now(),
+      segments: state
+    }));
+    showToast('\u2713 Saved', 1200);
+  } catch(e) { /* quota exceeded */ }
+}
+
+function restoreState() {
+  try {
+    var raw = localStorage.getItem(_SAVE_KEY);
+    if (!raw) return;
+    var saved = JSON.parse(raw);
+    if (!saved || !saved.segments) return;
+    if (Date.now() - saved.timestamp > 30 * 24 * 3600 * 1000) {
+      localStorage.removeItem(_SAVE_KEY);
+      return;
+    }
+    var map = {};
+    saved.segments.forEach(function(s) { map[s.id] = s; });
+    segments.forEach(function(seg) {
+      var s = map[seg.id];
+      if (!s) return;
+      seg.status = s.status;
+      seg.muted_ranges = s.muted_ranges || [];
+      if (s.edited_text) seg.edited_text = s.edited_text;
+      seg.speaker = s.speaker;
+      if (typeof s.suggested !== 'undefined') seg.suggested = s.suggested;
+    });
+    showToast('Restored from auto-save', 2000);
+  } catch(e) {
+    localStorage.removeItem(_SAVE_KEY);
+  }
+}
+
+// ── Stats ────────────────────────────────────────────────────────────────
+function updateStats() {
+  var total = segments.length;
+  var cut = 0; var cutDur = 0; var totalDur = 0;
+  segments.forEach(function(s) {
+    var d = getSegDuration(s);
+    totalDur += d;
+    if (s.status === 'cut') { cut++; cutDur += d; }
+  });
+  var kept = total - cut;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statKept').textContent = kept;
+  document.getElementById('statCut').textContent = cut;
+  document.getElementById('statCutPct').textContent = total > 0 ? Math.round(cut / total * 100) + '%' : '0%';
+  document.getElementById('statDurTotal').textContent = fmtTime(totalDur);
+  document.getElementById('statDurCut').textContent = fmtTime(cutDur);
+  document.getElementById('statDurRemain').textContent = fmtTime(totalDur - cutDur);
+}
+
+// ── Filter ───────────────────────────────────────────────────────────────
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('[data-filter]').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.filter === f);
+  });
+  applyFilters();
+}
+
+function setSpeakerFilter(speaker) {
+  if (currentSpeakerFilter === speaker) {
+    currentSpeakerFilter = null;
+  } else {
+    currentSpeakerFilter = speaker;
+  }
+  document.querySelectorAll('[data-speaker]').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.speaker === currentSpeakerFilter);
+  });
+  applyFilters();
+}
+
+var _searchTimer = null;
+function scheduleSearch() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(function() {
+    searchQuery = document.getElementById('searchInput').value.toLowerCase().trim();
+    applyFilters();
+  }, 200);
+}
+
+function applyFilters() {
+  segments.forEach(function(seg, idx) {
+    var show = true;
+    if (currentFilter === 'kept' && seg.status === 'cut') show = false;
+    if (currentFilter === 'cut' && seg.status !== 'cut') show = false;
+    if (currentSpeakerFilter && seg.speaker !== currentSpeakerFilter) show = false;
+    var textContent = (seg.edited_text || seg.text || seg.original_text || '').toLowerCase();
+    if (searchQuery && textContent.indexOf(searchQuery) === -1) show = false;
+
+    var segEl = document.getElementById('seg-' + idx);
+    var sideEl = document.getElementById('side-' + idx);
+    if (segEl) segEl.style.display = show ? '' : 'none';
+    if (sideEl) sideEl.style.display = show ? '' : 'none';
+  });
+}
+
+function buildSpeakerFilters() {
+  var container = document.getElementById('speakerFilters');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  getSpeakers().forEach(function(spk) {
+    var btn = document.createElement('button');
+    btn.className = 'filter-pill';
+    btn.dataset.speaker = spk;
+    btn.textContent = spk;
+    btn.onclick = function() { setSpeakerFilter(spk); };
+    container.appendChild(btn);
+  });
+}
+
+// ── Multi-selection ──────────────────────────────────────────────────────
+function toggleSelect(idx, event) {
+  if (event && event.shiftKey && lastClickedIdx >= 0) {
+    var lo = Math.min(lastClickedIdx, idx);
+    var hi = Math.max(lastClickedIdx, idx);
+    for (var i = lo; i <= hi; i++) selectedIndices.add(i);
+  } else if (event && (event.ctrlKey || event.metaKey)) {
+    if (selectedIndices.has(idx)) selectedIndices.delete(idx);
+    else selectedIndices.add(idx);
+  } else {
+    if (selectedIndices.size === 1 && selectedIndices.has(idx)) {
+      selectedIndices.clear();
+    } else {
+      selectedIndices.clear();
+      selectedIndices.add(idx);
+    }
+  }
+  lastClickedIdx = idx;
+  updateSelectionUI();
+}
+
+function clearSelection() {
+  selectedIndices.clear();
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  segments.forEach(function(_, idx) {
+    var segEl = document.getElementById('seg-' + idx);
+    var sideEl = document.getElementById('side-' + idx);
+    var sel = selectedIndices.has(idx);
+    if (segEl) segEl.classList.toggle('selected', sel);
+    if (sideEl) sideEl.classList.toggle('selected', sel);
+  });
+  var popup = document.getElementById('selectionPopup');
+  if (selectedIndices.size > 0) {
+    document.getElementById('selCount').textContent = selectedIndices.size + ' selected';
+    popup.classList.add('visible');
+    popup.style.bottom = '20px';
+    popup.style.left = '50%';
+    popup.style.transform = 'translateX(-50%)';
+  } else {
+    popup.classList.remove('visible');
+  }
+}
+
+function cutSelected() {
+  if (selectedIndices.size === 0) return;
+  saveUndo();
+  selectedIndices.forEach(function(idx) { segments[idx].status = 'cut'; });
+  clearSelection();
+  renderAll();
+  autoSave();
+}
+
+function keepSelected() {
+  if (selectedIndices.size === 0) return;
+  saveUndo();
+  selectedIndices.forEach(function(idx) { segments[idx].status = 'keep'; });
+  clearSelection();
+  renderAll();
+  autoSave();
+}
+
+// ── Drag and Drop ────────────────────────────────────────────────────────
+var dragSrcIdx = -1;
+
+function onDragStart(e) {
+  dragSrcIdx = parseInt(e.currentTarget.dataset.idx);
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', String(dragSrcIdx));
+  e.currentTarget.style.opacity = '0.4';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  e.currentTarget.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+function onDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  var targetIdx = parseInt(e.currentTarget.dataset.idx);
+  if (dragSrcIdx === targetIdx) return;
+  saveUndo();
+  var moved = segments.splice(dragSrcIdx, 1)[0];
+  segments.splice(targetIdx, 0, moved);
+  renderAll();
+  autoSave();
+}
+
+function onDragEnd(e) {
+  e.currentTarget.style.opacity = '1';
+  document.querySelectorAll('.segment.drag-over').forEach(function(el) {
+    el.classList.remove('drag-over');
+  });
+}
+
+// ── Cut toggle ───────────────────────────────────────────────────────────
+function toggleCut(idx) {
+  saveUndo();
+  segments[idx].status = segments[idx].status === 'cut' ? 'keep' : 'cut';
+  renderAll();
+  autoSave();
+}
+
+// ── Speaker toggle ───────────────────────────────────────────────────────
+function toggleSpeaker(idx) {
+  var speakers = getSpeakers();
+  var cur = segments[idx].speaker;
+  var next = speakers[(speakers.indexOf(cur) + 1) % speakers.length];
+  saveUndo();
+  segments[idx].speaker = next;
+  renderAll();
+  autoSave();
+}
+
+// ── Strikethrough (word-level) ───────────────────────────────────────────
+function onTextSelect(e) {
+  var sel = window.getSelection();
+  if (!sel || sel.isCollapsed) {
+    document.getElementById('floatToolbar').classList.remove('visible');
+    return;
+  }
+  var range = sel.getRangeAt(0);
+  var rect = range.getBoundingClientRect();
+  var toolbar = document.getElementById('floatToolbar');
+  toolbar.style.left = (rect.left + rect.width/2 - 60) + 'px';
+  toolbar.style.top = (rect.top - 40 + window.scrollY) + 'px';
+  toolbar.classList.add('visible');
+}
+
+function strikeSelection() {
+  var sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return;
+
+  var textDiv = sel.anchorNode;
+  while (textDiv && !textDiv.classList) textDiv = textDiv.parentElement;
+  while (textDiv && !textDiv.classList.contains('seg-text')) textDiv = textDiv.parentElement;
+  if (!textDiv) return;
+
+  var idx = parseInt(textDiv.dataset.idx);
+  var seg = segments[idx];
+  var selectedText = sel.toString();
+  var fullText = seg.edited_text || seg.original_text || seg.text;
+  var start = fullText.indexOf(selectedText);
+  if (start === -1) { sel.removeAllRanges(); return; }
+
+  saveUndo();
+  if (!seg.muted_ranges) seg.muted_ranges = [];
+  seg.muted_ranges.push({ start: start, end: start + selectedText.length, text: selectedText });
+  seg.muted_ranges.sort(function(a,b) { return a.start - b.start; });
+
+  sel.removeAllRanges();
+  document.getElementById('floatToolbar').classList.remove('visible');
+  renderSegments();
+  updateStats();
+  schedulePreview();
+  autoSave();
+}
+
+function unstrike(idx, rangeIdx) {
+  saveUndo();
+  segments[idx].muted_ranges.splice(rangeIdx, 1);
+  renderSegments();
+  updateStats();
+  schedulePreview();
+  autoSave();
+}
+
+// ── Segment splitting ────────────────────────────────────────────────────
+function splitAtCursor() {
+  var sel = window.getSelection();
+  if (!sel || sel.isCollapsed) return;
+
+  var textDiv = sel.anchorNode;
+  while (textDiv && !textDiv.classList) textDiv = textDiv.parentElement;
+  while (textDiv && !textDiv.classList.contains('seg-text')) textDiv = textDiv.parentElement;
+  if (!textDiv) return;
+
+  var idx = parseInt(textDiv.dataset.idx);
+  var seg = segments[idx];
+  var fullText = seg.edited_text || seg.original_text || seg.text;
+  var cursorPos = sel.anchorOffset;
+
+  var node = sel.anchorNode;
+  if (node.nodeType === 3) {
+    var prev = node;
+    while (prev.previousSibling) {
+      prev = prev.previousSibling;
+      cursorPos += (prev.textContent || '').length;
+    }
+  }
+
+  if (cursorPos <= 0 || cursorPos >= fullText.length) return;
+
+  saveUndo();
+
+  var startSec = parseTime(seg.start_time);
+  var endSec = parseTime(seg.end_time);
+  var splitSec = startSec + (cursorPos / fullText.length) * (endSec - startSec);
+
+  var seg1 = JSON.parse(JSON.stringify(seg));
+  var seg2 = JSON.parse(JSON.stringify(seg));
+
+  seg1.id = seg.id + 'a';
+  seg1.text = fullText.substring(0, cursorPos);
+  seg1.original_text = seg1.text;
+  seg1.edited_text = seg1.text;
+  seg1.end_time = fmtTimeHMS(splitSec);
+  seg1.muted_ranges = [];
+
+  seg2.id = seg.id + 'b';
+  seg2.text = fullText.substring(cursorPos);
+  seg2.original_text = seg2.text;
+  seg2.edited_text = seg2.text;
+  seg2.start_time = fmtTimeHMS(splitSec);
+  seg2.muted_ranges = [];
+
+  segments.splice(idx, 1, seg1, seg2);
+
+  sel.removeAllRanges();
+  document.getElementById('floatToolbar').classList.remove('visible');
+  renderAll();
+  autoSave();
+}
+
+// ── Suggestion management ────────────────────────────────────────────────
+function revertSuggestion(idx) {
+  saveUndo();
+  segments[idx].status = 'keep';
+  segments[idx].suggested = false;
+  delete segments[idx].suggestion_info;
+  renderAll();
+  autoSave();
+}
+
+function acceptSuggestion(idx) {
+  saveUndo();
+  segments[idx].suggested = false;
+  delete segments[idx].suggestion_info;
+  renderAll();
+  autoSave();
+}
+
+function revertAllSuggestions() {
+  saveUndo();
+  segments.forEach(function(seg) {
+    if (seg.suggested && seg.status === 'cut') {
+      seg.status = 'keep';
+      seg.suggested = false;
+      delete seg.suggestion_info;
+    }
+  });
+  renderAll();
+  autoSave();
+}
+
+function acceptAllSuggestions() {
+  saveUndo();
+  segments.forEach(function(seg) {
+    if (seg.suggested) {
+      seg.suggested = false;
+      delete seg.suggestion_info;
+    }
+  });
+  renderAll();
+  autoSave();
+}
+
+function toggleRationales() {
+  showRationales = !showRationales;
+  document.getElementById('btnToggleRationale').textContent = showRationales ? 'Hide Rationales' : 'Show Rationales';
+  document.querySelectorAll('.suggestion-rationale').forEach(function(el) {
+    el.style.display = showRationales ? '' : 'none';
+  });
+}
+
+function updateSuggestionBanner() {
+  var count = 0;
+  segments.forEach(function(seg) { if (seg.suggested) count++; });
+  document.getElementById('suggestionCount').textContent = count;
+  var banner = document.getElementById('suggestionBanner');
+  banner.style.display = count > 0 ? 'flex' : 'none';
+  document.getElementById('statsBar').style.marginTop = count > 0 ? '0' : '52px';
+}
+
+// ── Audio ────────────────────────────────────────────────────────────────
+document.getElementById('audioFileInput').addEventListener('change', function(e) {
+  var file = e.target.files[0];
+  if (!file) return;
+  audioEl.src = URL.createObjectURL(file);
+  audioLoaded = true;
+  showToast('Audio loaded: ' + file.name);
+});
+
+audioEl.addEventListener('timeupdate', updateProgress);
+audioEl.addEventListener('ended', function() {
+  isPlaying = false;
+  document.getElementById('playBtn').textContent = '\u25B6';
+  document.getElementById('playBtn').classList.remove('playing');
+});
+
+function togglePlay() {
+  if (!audioLoaded) { showToast('Load an audio file first'); return; }
+  if (isPlaying) {
+    audioEl.pause();
+    isPlaying = false;
+    document.getElementById('playBtn').textContent = '\u25B6';
+    document.getElementById('playBtn').classList.remove('playing');
+  } else {
+    audioEl.play();
+    isPlaying = true;
+    document.getElementById('playBtn').textContent = '\u23F8';
+    document.getElementById('playBtn').classList.add('playing');
+  }
+}
+
+function playSingle(idx) {
+  if (!audioLoaded) { showToast('Load an audio file first'); return; }
+  var seg = segments[idx];
+  var start = parseTime(seg.start_time);
+  var end = parseTime(seg.end_time);
+  audioEl.currentTime = start;
+  audioEl.play();
+  isPlaying = true;
+  playingIdx = idx;
+  document.getElementById('playBtn').textContent = '\u23F8';
+  document.getElementById('playBtn').classList.add('playing');
+
+  document.querySelectorAll('.segment.playing').forEach(function(el) { el.classList.remove('playing'); });
+  var segEl = document.getElementById('seg-' + idx);
+  if (segEl) segEl.classList.add('playing');
+
+  var checkEnd = function() {
+    if (audioEl.currentTime >= end) {
+      audioEl.pause();
+      isPlaying = false;
+      playingIdx = -1;
+      document.getElementById('playBtn').textContent = '\u25B6';
+      document.getElementById('playBtn').classList.remove('playing');
+      if (segEl) segEl.classList.remove('playing');
+      audioEl.removeEventListener('timeupdate', checkEnd);
+    }
+  };
+  audioEl.addEventListener('timeupdate', checkEnd);
+}
+
+function cycleSpeed() {
+  speedIdx = (speedIdx + 1) % speeds.length;
+  audioEl.playbackRate = speeds[speedIdx];
+  document.getElementById('speedBtn').textContent = speeds[speedIdx] + 'x';
+}
+
+function seekAudio(e) {
+  if (!audioLoaded) return;
+  var bar = document.getElementById('progressBar');
+  var rect = bar.getBoundingClientRect();
+  var pct = (e.clientX - rect.left) / rect.width;
+  audioEl.currentTime = pct * audioEl.duration;
+}
+
+function updateProgress() {
+  if (!audioLoaded || !audioEl.duration) return;
+  var pct = (audioEl.currentTime / audioEl.duration) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('timeDisplay').textContent =
+    fmtTime(audioEl.currentTime) + ' / ' + fmtTime(audioEl.duration);
+}
+
+// ── Render: Sidebar ──────────────────────────────────────────────────────
+function renderSidebar() {
+  var container = document.getElementById('sidebar');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  segments.forEach(function(seg, idx) {
+    var item = document.createElement('div');
+    item.className = 'sidebar-item';
+    item.id = 'side-' + idx;
+    if (seg.status === 'cut') item.classList.add('cut');
+    if (seg.suggested) item.classList.add('suggested');
+    if (selectedIndices.has(idx)) item.classList.add('selected');
+
+    var num = document.createElement('span');
+    num.className = 'sidebar-num';
+    num.textContent = idx + 1;
+
+    var badge = document.createElement('span');
+    badge.className = 'sidebar-badge ' + seg.speaker.toLowerCase();
+    badge.textContent = seg.speaker.charAt(0);
+
+    var text = document.createElement('span');
+    text.className = 'sidebar-text';
+    var t = seg.edited_text || seg.original_text || seg.text;
+    text.textContent = t.substring(0, 40) + (t.length > 40 ? '...' : '');
+
+    item.appendChild(num);
+    item.appendChild(badge);
+    item.appendChild(text);
+
+    item.onclick = function() {
+      var segEl = document.getElementById('seg-' + idx);
+      if (segEl) segEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    container.appendChild(item);
+  });
+}
+
+// ── Render: Segments ─────────────────────────────────────────────────────
+function renderSegments() {
+  var container = document.getElementById('segmentsContainer');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  var currentAct = null;
+
+  segments.forEach(function(seg, idx) {
+    if (seg.act && seg.act !== currentAct) {
+      currentAct = seg.act;
+      var actEl = document.createElement('div');
+      actEl.className = 'act-header';
+      actEl.textContent = currentAct;
+      container.appendChild(actEl);
+    }
+
+    var isCut = seg.status === 'cut';
+    var isMoved = seg.original_position !== (idx + 1);
+
+    var div = document.createElement('div');
+    div.className = 'segment ' + seg.speaker.toLowerCase();
+    div.id = 'seg-' + idx;
+    div.dataset.idx = idx;
+    if (isCut) div.classList.add('cut');
+    if (isMoved && !isCut) div.classList.add('moved');
+    if (seg.suggested) div.classList.add('suggested-cut');
+    if (seg.is_key_moment) div.classList.add('key-moment');
+    if (selectedIndices.has(idx)) div.classList.add('selected');
+    div.draggable = true;
+    div.addEventListener('dragstart', onDragStart);
+    div.addEventListener('dragover', onDragOver);
+    div.addEventListener('dragleave', onDragLeave);
+    div.addEventListener('drop', onDrop);
+    div.addEventListener('dragend', onDragEnd);
+
+    var header = document.createElement('div');
+    header.className = 'seg-header';
+
+    var handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.textContent = '\u2807';
+
+    var speaker = document.createElement('span');
+    speaker.className = 'seg-speaker ' + seg.speaker.toLowerCase();
+    speaker.textContent = seg.speaker;
+    speaker.onclick = function(e) { e.stopPropagation(); toggleSpeaker(idx); };
+
+    var time = document.createElement('span');
+    time.className = 'seg-time';
+    time.textContent = seg.start_time + ' \u2013 ' + seg.end_time;
+
+    var sid = document.createElement('span');
+    sid.className = 'seg-id';
+    sid.textContent = seg.id;
+
+    var actions = document.createElement('div');
+    actions.className = 'seg-actions';
+
+    var playBtn = document.createElement('button');
+    playBtn.className = 'seg-play-btn';
+    playBtn.textContent = '\u25B6';
+    playBtn.title = 'Preview this segment';
+    (function(i) { playBtn.onclick = function(e) { e.stopPropagation(); playSingle(i); }; })(idx);
+
+    var cutBtn = document.createElement('button');
+    cutBtn.className = 'btn btn-danger' + (isCut ? ' active' : '');
+    cutBtn.textContent = isCut ? '\u2713 Cut' : '\u2702 Cut';
+    (function(i) { cutBtn.onclick = function(e) { e.stopPropagation(); toggleCut(i); }; })(idx);
+
+    actions.appendChild(playBtn);
+    actions.appendChild(cutBtn);
+
+    header.appendChild(handle);
+    header.appendChild(speaker);
+    header.appendChild(time);
+    header.appendChild(sid);
+
+    if (seg.source) {
+      var srcEl = document.createElement('span');
+      srcEl.className = 'seg-source';
+      srcEl.textContent = seg.source;
+      header.appendChild(srcEl);
+    }
+
+    if (seg.is_key_moment) {
+      var keyEl = document.createElement('span');
+      keyEl.className = 'key-badge';
+      keyEl.textContent = '\u2B50 Key Moment';
+      header.appendChild(keyEl);
+    }
+
+    header.appendChild(actions);
+
+    if (seg.suggested) {
+      var sugTag = document.createElement('span');
+      sugTag.className = 'suggestion-tag';
+      sugTag.textContent = '\u2728 CUT ' + (seg.suggestion_info ? seg.suggestion_info.cut_num : '?') + ' \u2014 AI Suggested';
+      header.insertBefore(sugTag, actions);
+
+      var revertBtn = document.createElement('button');
+      revertBtn.className = 'btn';
+      revertBtn.textContent = '\u21A9 Revert';
+      revertBtn.title = 'Revert this AI suggestion';
+      (function(i) { revertBtn.onclick = function(e) { e.stopPropagation(); revertSuggestion(i); }; })(idx);
+      actions.appendChild(revertBtn);
+
+      var acceptBtn = document.createElement('button');
+      acceptBtn.className = 'btn btn-primary';
+      acceptBtn.textContent = '\u2713 Confirm';
+      (function(i) { acceptBtn.onclick = function(e) { e.stopPropagation(); acceptSuggestion(i); }; })(idx);
+      actions.appendChild(acceptBtn);
+    }
+
+    var body = document.createElement('div');
+    body.className = 'seg-body';
+
+    var textDiv = document.createElement('div');
+    textDiv.className = 'seg-text';
+    textDiv.contentEditable = isCut ? 'false' : 'true';
+    textDiv.dataset.idx = idx;
+
+    var rawText = seg.edited_text || seg.original_text || seg.text;
+    var muted = seg.muted_ranges || [];
+
+    if (muted.length > 0) {
+      muted.sort(function(a,b) { return a.start - b.start; });
+      var lastEnd = 0;
+      muted.forEach(function(r, ri) {
+        if (r.start > lastEnd) {
+          textDiv.appendChild(document.createTextNode(rawText.substring(lastEnd, r.start)));
+        }
+        var struck = document.createElement('span');
+        struck.className = 'struck';
+        struck.textContent = rawText.substring(r.start, r.end);
+        (function(i, rangeIdx) {
+          struck.onclick = function(e) { e.stopPropagation(); unstrike(i, rangeIdx); };
+        })(idx, ri);
+        textDiv.appendChild(struck);
+        lastEnd = r.end;
+      });
+      if (lastEnd < rawText.length) {
+        textDiv.appendChild(document.createTextNode(rawText.substring(lastEnd)));
+      }
+    } else {
+      textDiv.textContent = rawText;
+    }
+
+    (function(i, s) {
+      textDiv.addEventListener('input', function() {
+        s.edited_text = this.textContent;
+        schedulePreview();
+        autoSave();
+      });
+    })(idx, seg);
+    textDiv.addEventListener('mouseup', onTextSelect);
+
+    body.appendChild(textDiv);
+    div.appendChild(header);
+    div.appendChild(body);
+
+    if (seg.suggested && seg.suggestion_info && seg.suggestion_info.rationale) {
+      var ratDiv = document.createElement('div');
+      ratDiv.className = 'suggestion-rationale';
+      ratDiv.textContent = '\uD83D\uDCA1 ' + (seg.suggestion_info.label || '') + ': ' + seg.suggestion_info.rationale;
+      if (!showRationales) ratDiv.style.display = 'none';
+      div.appendChild(ratDiv);
+    }
+
+    div.addEventListener('click', function(e) {
+      if (e.target.closest('.seg-actions') || e.target.closest('.seg-text') || e.target.closest('.seg-speaker')) return;
+      toggleSelect(idx, e);
+    });
+
+    container.appendChild(div);
+  });
+}
+
+// ── Render: Preview ──────────────────────────────────────────────────────
+var _previewTimer = null;
+function schedulePreview() {
+  clearTimeout(_previewTimer);
+  _previewTimer = setTimeout(renderPreview, 300);
+}
+
+function renderPreview() {
+  var body = document.getElementById('previewBody');
+  while (body.firstChild) body.removeChild(body.firstChild);
+  segments.forEach(function(seg) {
+    if (seg.status === 'cut') return;
+    var p = document.createElement('p');
+    var label = document.createElement('span');
+    label.className = 'speaker-label';
+    label.textContent = seg.speaker + ': ';
+    p.appendChild(label);
+
+    var rawText = seg.edited_text || seg.original_text || seg.text;
+    var muted = seg.muted_ranges || [];
+    if (muted.length > 0) {
+      muted.sort(function(a,b) { return a.start - b.start; });
+      var lastEnd = 0;
+      muted.forEach(function(r) {
+        if (r.start > lastEnd) p.appendChild(document.createTextNode(rawText.substring(lastEnd, r.start)));
+        var del = document.createElement('del');
+        del.textContent = rawText.substring(r.start, r.end);
+        p.appendChild(del);
+        lastEnd = r.end;
+      });
+      if (lastEnd < rawText.length) p.appendChild(document.createTextNode(rawText.substring(lastEnd)));
+    } else {
+      p.appendChild(document.createTextNode(rawText));
+    }
+    body.appendChild(p);
+  });
+}
+
+function togglePreview() {
+  previewCollapsed = !previewCollapsed;
+  document.getElementById('previewBody').classList.toggle('collapsed', previewCollapsed);
+  document.getElementById('previewArrow').classList.toggle('collapsed', previewCollapsed);
+}
+
+// ── Export ────────────────────────────────────────────────────────────────
+function exportJSON() {
+  var output = { segments: [] };
+  segments.forEach(function(seg, idx) {
+    var entry = {
+      id: seg.id,
+      speaker: seg.speaker,
+      original_text: seg.original_text || seg.text,
+      edited_text: seg.edited_text || seg.original_text || seg.text,
+      status: seg.status,
+      original_position: seg.original_position,
+      final_position: idx + 1,
+      start_time: seg.start_time,
+      end_time: seg.end_time,
+      muted_ranges: seg.muted_ranges || []
+    };
+    if (seg.act) entry.act = seg.act;
+    if (seg.is_key_moment) entry.is_key_moment = true;
+    if (seg.source) entry.source = seg.source;
+    output.segments.push(entry);
+  });
+
+  var blob = new Blob([JSON.stringify(output, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'edit_decision.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported edit_decision.json');
+}
+
+// ── Render All ───────────────────────────────────────────────────────────
+function renderAll() {
+  renderSidebar();
+  renderSegments();
+  updateStats();
+  schedulePreview();
+  updateUndoButtons();
+  updateSuggestionBanner();
+  applyFilters();
+}
+
+// ── Keyboard shortcuts ───────────────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  var inInput = e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable;
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault(); undo(); return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && e.shiftKey) {
+    e.preventDefault(); redo(); return;
+  }
+
+  if (inInput) return;
+
+  if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIndices.size > 0) {
+    e.preventDefault(); cutSelected(); return;
+  }
+  if (e.key === ' ') {
+    e.preventDefault(); togglePlay(); return;
+  }
+  if (e.key === 'Escape') {
+    clearSelection();
+    document.getElementById('floatToolbar').classList.remove('visible');
+    return;
+  }
+});
+
+document.addEventListener('mousedown', function(e) {
+  if (!e.target.closest('.float-toolbar') && !e.target.closest('.seg-text')) {
+    document.getElementById('floatToolbar').classList.remove('visible');
+  }
+});
+
+// ── Init ─────────────────────────────────────────────────────────────────
+restoreState();
+buildSpeakerFilters();
+renderAll();
+</script>
+</body>
+</html>

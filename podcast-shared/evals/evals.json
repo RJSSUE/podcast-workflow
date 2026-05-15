@@ -1,0 +1,54 @@
+{
+  "skill_name": "podcast-post-production",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a raw interview transcript at /Users/jrui7/Downloads/podcast/Melanie/melanie in-person transcript.txt and /Users/jrui7/Downloads/podcast/Melanie/Melanie Zoom 1&2 transcripts.txt. The guest is Melanie Ray, a dancer from Brooklyn. The interview is in English with some Chinese phrases mixed in. Please format this into a proper Host/Guest labeled transcript and write an edit proposal with a story arc analysis. Save outputs to the specified output directory. Do NOT process any audio files — only work with the text transcripts.",
+      "expected_output": "A formatted transcript.txt with Host/Guest labels on every turn, and an edit_proposal.md with story arc, recommended cuts with rationale, and reorder suggestions",
+      "files": [],
+      "expectations": [
+        "transcript.txt exists and contains Host/Guest speaker labels",
+        "Every speaker turn in transcript.txt starts with 'Host:' or 'Guest:'",
+        "transcript.txt includes the guest name 'Melanie' in speaker labels",
+        "edit_proposal.md exists with a story arc section",
+        "edit_proposal.md contains specific cut recommendations with rationale",
+        "edit_proposal.md estimates a target duration between 60-90 minutes",
+        "Both files are saved under the output directory"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I have a completed edit_decision.json at /Users/jrui7/Downloads/podcast/Melanie/podcast_output/edit_decision.json and the formatted transcript at /Users/jrui7/Downloads/podcast/Melanie/podcast_output/transcript.txt. The guest is Melanie Ray, a Brooklyn-based dancer who does wacking, vogue, and hip hop. The interview is in English. Please generate: (1) English feature article, (2) Chinese feature article, (3) English show notes, (4) Chinese show notes, (5) Instagram post with 3 caption options. Read the article style guide at /Users/jrui7/.claude/skills/podcast-post-production/references/article_style_guide.md before writing articles. Save all outputs to the specified output directory. Do NOT process any audio.",
+      "expected_output": "Five text files: article_en.md, article_zh.md, shownotes_en.md, shownotes_zh.md, instagram_post.txt — all reflecting the Melanie Ray episode content",
+      "files": [],
+      "expectations": [
+        "article_en.md exists and is 800-1200 words",
+        "article_en.md opens with a scene or moment, not a bio",
+        "article_en.md contains direct quotes from Melanie",
+        "article_en.md has a byline mentioning 'The Try Girl' and 'Dance Chat'",
+        "article_zh.md exists and is written in Chinese, not a direct translation of the English version",
+        "article_zh.md byline references '舞所不谈'",
+        "shownotes_en.md contains a 'Key Topics Discussed' section with bullet points",
+        "shownotes_en.md contains a 'Timestamps' section",
+        "shownotes_zh.md exists and is written in Chinese",
+        "instagram_post.txt contains 3 caption options at different lengths",
+        "instagram_post.txt contains hashtags including #舞所不谈 and #DanceChat"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I have a formatted transcript at /Users/jrui7/Downloads/podcast/Melanie/podcast_output/transcript.txt for the Melanie Ray episode. Please generate an interactive HTML transcript editor that I can open in my browser. It should have: a left panel with all segments listed, a right panel for editing, drag-and-drop reordering, ability to strike out text within segments, a split button to divide segments, and an Export Edit Decision button that downloads edit_decision.json. Save as edit_review.html in the specified output directory. Do NOT process any audio.",
+      "expected_output": "A self-contained edit_review.html file with two-panel layout, drag-drop, strikethrough, split, and JSON export functionality",
+      "files": [],
+      "expectations": [
+        "edit_review.html exists and is a valid HTML file",
+        "edit_review.html contains drag-and-drop event handlers (dragstart, dragover, drop)",
+        "edit_review.html has a strikethrough or strike-out function",
+        "edit_review.html has a split segment button or function",
+        "edit_review.html has an export button that generates JSON",
+        "edit_review.html contains speaker labels (Host/Guest) for segments",
+        "The exported JSON schema includes fields: id, speaker, status, original_position, final_position"
+      ]
+    }
+  ]
+}

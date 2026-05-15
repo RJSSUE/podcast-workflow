@@ -1,0 +1,117 @@
+{
+  "episodes": [
+    {
+      "episode": "Melanie",
+      "date": "2026-04-07",
+      "scores": {
+        "transcript_processor": {
+          "overall": 0.75,
+          "by_metric": {
+            "format_compliance": true,
+            "segment_boundaries": true,
+            "coverage": true,
+            "timestamp_continuity": false
+          }
+        },
+        "story_analyst": {
+          "overall": 1.0,
+          "by_metric": {
+            "rationale_presence": true,
+            "qa_pairing_integrity": true,
+            "story_arc_present": true,
+            "target_length_adherence": true
+          }
+        },
+        "html_editor_builder": {
+          "overall": 1.0,
+          "by_metric": {
+            "segment_count_match": true,
+            "export_json_schema": true,
+            "feature_completeness": true,
+            "speaker_labels_present": true,
+            "no_js_errors": true
+          }
+        }
+      }
+    }
+  ],
+  "trends": {
+    "transcript_processor": {
+      "format_compliance": [
+        true
+      ],
+      "segment_boundaries": [
+        true
+      ],
+      "coverage": [
+        true
+      ],
+      "timestamp_continuity": [
+        false
+      ]
+    },
+    "story_analyst": {
+      "rationale_presence": [
+        true
+      ],
+      "qa_pairing_integrity": [
+        true
+      ],
+      "story_arc_present": [
+        true
+      ],
+      "target_length_adherence": [
+        true
+      ]
+    },
+    "html_editor_builder": {
+      "segment_count_match": [
+        true
+      ],
+      "export_json_schema": [
+        true
+      ],
+      "feature_completeness": [
+        true
+      ],
+      "speaker_labels_present": [
+        true
+      ],
+      "no_js_errors": [
+        true
+      ]
+    }
+  },
+  "recurring_failures": [
+    {
+      "agent": "transcript_processor",
+      "issue": "Raw ASR text too garbled for fuzzy matching with corrected text. When user provides corrected edit_decision.json, rebuild transcript from it directly instead of patching raw segments.",
+      "first_seen": "Melanie",
+      "occurrences": 1
+    },
+    {
+      "agent": "html_editor_builder",
+      "issue": "Python f-strings collide with JavaScript curly braces. Use json.dumps() for data + plain string concatenation for HTML/JS templates.",
+      "first_seen": "Melanie",
+      "occurrences": 1
+    },
+    {
+      "agent": "audio_compiler",
+      "issue": "Zoom free-tier records stereo (2ch); in-person room mic is mono (1ch). Concatenating mixed channel counts without -ac 1 produces monster-voice artifacts (doubled duration, halved pitch). Always force -ac 1 on all segment extractions.",
+      "first_seen": "Melanie",
+      "occurrences": 1
+    },
+    {
+      "agent": "audio_compiler",
+      "issue": "In-person room mic and Zoom computer audio have very different acoustic profiles (EQ, reverb, room tone). Even after loudness normalization, the listener hears a jarring shift between sources. Apply acoustic cohesion filtering (highpass, lowpass, compression) to all segments before concatenation, or consider voice-cloned TTS regeneration for full consistency.",
+      "first_seen": "Melanie",
+      "occurrences": 1
+    },
+    {
+      "agent": "audio_compiler",
+      "issue": "Raw interview audio needs cleanup: trim long pauses (>0.8s) to natural breath gaps, and reduce (not eliminate) filler words like 'umm', 'uhh', '然后', '就是'. Keep fillers that serve as natural transitions. Use silenceremove filter for pauses; filler removal needs word-level ASR timestamps.",
+      "first_seen": "Melanie",
+      "occurrences": 1
+    }
+  ]
+}

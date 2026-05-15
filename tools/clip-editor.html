@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clip Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0b0b0d; --surface: #111115; --panel: #17171c; --card: #1d1d23;
+  --border: #2a2a33; --border2: #38383f;
+  --text: #e4e4ea; --muted: #5a5a68; --dim: #3a3a46;
+  --accent: #e8a030; --accent-lo: #1f1400; --accent-hi: #f5bb60;
+  --zh: #5b9bd5; --zh-lo: #0d1e2e;
+  --danger: #c94040; --success: #3a9060; --preview: #a855f7; --preview-lo: #1a0a2e;
+  --radius: 6px; --mono: 'IBM Plex Mono', monospace; --sans: 'Outfit', sans-serif;
+}
+html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; }
+
+/* ── Upload ──────────────────────────────────────────────────── */
+#upload-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  height: 100vh; gap: 40px;
+  background: radial-gradient(ellipse at 30% 40%, #1a1400 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 70%, #0d0d1a 0%, transparent 50%), var(--bg);
+}
+.upload-logo { display: flex; align-items: center; gap: 12px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+.upload-logo .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.upload-subtitle { color: var(--muted); font-size: 13px; letter-spacing: 0.04em; }
+.upload-zones { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.drop-zone {
+  width: 140px; height: 130px; border: 1.5px dashed var(--border2); border-radius: 10px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  cursor: pointer; transition: all 0.2s; position: relative; background: var(--surface);
+}
+.drop-zone:hover { border-color: var(--accent); background: #17140a; }
+.drop-zone.loaded { border-color: var(--success); border-style: solid; background: #0a1710; }
+.drop-zone.optional { border-color: var(--border); }
+.drop-zone.optional:hover { border-color: var(--zh); background: #0a1520; }
+.drop-zone.optional.loaded { border-color: var(--zh); background: #09141f; }
+.drop-zone.preset { border-color: var(--border); }
+.drop-zone.preset:hover { border-color: var(--preview); background: var(--preview-lo); }
+.drop-zone.preset.loaded { border-color: var(--preview); background: var(--preview-lo); border-style: solid; }
+.drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.drop-icon { font-size: 24px; }
+.drop-label { font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-align: center; }
+.drop-label-opt { font-size: 9px; letter-spacing: 0.04em; color: var(--dim); margin-top: -4px; }
+.drop-status { font-size: 9px; color: var(--success); display: none; max-width: 120px; text-align: center; word-break: break-all; }
+.drop-zone.loaded .drop-status { display: block; }
+.drop-zone.loaded .drop-label { color: var(--success); }
+.drop-zone.preset.loaded .drop-status { color: var(--preview); }
+.drop-zone.preset.loaded .drop-label { color: var(--preview); }
+.upload-hint { font-size: 12px; color: var(--dim); text-align: center; line-height: 1.6; }
+
+/* ── Editor ──────────────────────────────────────────────────── */
+#editor-screen { display: none; flex-direction: column; height: 100vh; }
+.header {
+  display: flex; align-items: center; padding: 0 16px; height: 48px;
+  background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 12px;
+}
+.header-logo { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.header-logo .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.header-stats {
+  display: flex; align-items: center; gap: 12px; flex: 1; justify-content: center;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+}
+.stat-badge { padding: 3px 8px; border-radius: 4px; background: var(--card); border: 1px solid var(--border); }
+.stat-badge.over { color: var(--danger); border-color: #c9404040; }
+.stat-badge.under { color: var(--success); border-color: #3a906040; }
+.stat-badge.good { color: var(--accent); border-color: #e8a03040; }
+.header-right { display: flex; gap: 8px; flex-shrink: 0; }
+.btn {
+  padding: 6px 12px; border-radius: var(--radius); border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  transition: all 0.15s; display: inline-flex; align-items: center; gap: 5px;
+}
+.btn-ghost { background: transparent; color: var(--muted); }
+.btn-ghost:hover { color: var(--text); background: var(--card); }
+.btn-preview { background: var(--preview-lo); color: var(--preview); border: 1px solid #a855f740; }
+.btn-preview:hover { background: #2d1048; }
+.btn-preview.active { background: var(--preview); color: #fff; }
+.btn-accent { background: var(--accent); color: #0b0800; }
+.btn-accent:hover { background: var(--accent-hi); transform: translateY(-1px); box-shadow: 0 4px 16px #e8a03030; }
+
+.main { display: flex; flex: 1; overflow: hidden; }
+.video-pane { flex: 0 0 40%; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: #000; overflow: hidden; }
+.video-pane.portrait { flex: 0 0 35%; }
+.video-wrapper { flex: 1; position: relative; background: #000; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+#video-el { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; }
+#sub-overlay { position: absolute; bottom: 20px; left: 0; right: 0; text-align: center; padding: 0 16px; pointer-events: none; z-index: 10; display: none; }
+#sub-text-overlay {
+  font-family: var(--sans); font-size: clamp(10px, 1.4vw, 14px); font-weight: 600;
+  color: #fff; line-height: 1.3; display: inline-block; max-width: 90%;
+  text-shadow: 0 1px 4px #000, 0 0 10px #000; background: rgba(0,0,0,0.55); padding: 3px 8px; border-radius: 4px;
+}
+#sub-text-overlay.zh { color: #ffe97a; }
+.sub-toggle {
+  position: absolute; top: 8px; right: 8px; z-index: 11;
+  width: 24px; height: 24px; border-radius: 4px; border: 1px solid #fff3; background: #0008;
+  color: #fff; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s;
+}
+.video-wrapper:hover .sub-toggle { opacity: 0.7; }
+.sub-toggle:hover { opacity: 1 !important; background: #000c; }
+.sub-toggle.off { color: var(--danger); }
+
+/* ── Timeline ────────────────────────────────────────────────── */
+.timeline-section { flex-shrink: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 8px 12px; }
+.timeline-bar {
+  position: relative; height: 44px; background: var(--bg); border-radius: 4px;
+  cursor: crosshair; overflow: hidden; border: 1px solid var(--border);
+}
+.tl-segment {
+  position: absolute; top: 4px; bottom: 4px; background: #e8a03050; border: 1px solid #e8a03080;
+  border-radius: 3px; cursor: pointer; transition: background 0.1s; min-width: 4px;
+}
+.tl-segment:hover { background: #e8a03070; }
+.tl-segment.disabled { background: #e8a03015; border-color: #e8a03030; opacity: 0.5; }
+.tl-segment.active { background: #e8a03080; border-color: var(--accent); box-shadow: 0 0 8px #e8a03040; }
+.tl-handle {
+  position: absolute; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2;
+  transition: background 0.1s;
+}
+.tl-handle:hover { background: #e8a03060; }
+.tl-handle-left { left: -2px; border-radius: 3px 0 0 3px; }
+.tl-handle-right { right: -2px; border-radius: 0 3px 3px 0; }
+.tl-label {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-family: var(--mono); font-size: 9px; font-weight: 600; color: var(--accent-hi);
+  pointer-events: none; white-space: nowrap;
+}
+.tl-playhead {
+  position: absolute; top: 0; bottom: 0; width: 2px; background: #fff;
+  pointer-events: none; z-index: 5; transition: left 0.05s linear;
+}
+.tl-mark-region {
+  position: absolute; top: 0; bottom: 0; background: #3a906030; border-left: 2px solid var(--success);
+  pointer-events: none; z-index: 3;
+}
+
+.timeline-info { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+.mark-indicator { font-family: var(--mono); font-size: 10px; color: var(--success); }
+.mark-indicator.empty { color: var(--dim); }
+
+/* ── Controls ────────────────────────────────────────────────── */
+.controls { padding: 10px 12px; background: var(--surface); border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+.transport { display: flex; align-items: center; gap: 10px; }
+.play-btn {
+  width: 28px; height: 28px; border-radius: 50%; background: var(--accent); border: none;
+  cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; color: #0b0800;
+}
+.play-btn:hover { transform: scale(1.08); background: var(--accent-hi); }
+.play-btn svg { width: 10px; height: 10px; }
+.scrubber-wrap { flex: 1; display: flex; align-items: center; gap: 8px; }
+.time-display { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.offset-row { display: flex; align-items: center; gap: 8px; }
+.offset-label { font-size: 10px; color: var(--muted); width: 70px; font-family: var(--mono); flex-shrink: 0; }
+.offset-val { font-family: var(--mono); font-size: 10px; width: 44px; text-align: right; flex-shrink: 0; }
+.offset-val.pos { color: var(--accent); }
+.offset-val.neg { color: #7ab8f5; }
+.offset-val.zero { color: var(--muted); }
+input[type=range] { -webkit-appearance: none; height: 3px; background: var(--border); border-radius: 2px; outline: none; cursor: pointer; flex: 1; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+#scrubber::-webkit-slider-thumb { background: #fff; }
+
+/* ── Preview bar ─────────────────────────────────────────────── */
+.preview-bar {
+  display: none; height: 28px; background: var(--preview-lo); border-bottom: 1px solid #a855f730;
+  padding: 0 16px; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.preview-bar.active { display: flex; }
+.preview-progress { flex: 1; height: 4px; background: var(--border); border-radius: 2px; position: relative; overflow: hidden; }
+.preview-fill { height: 100%; background: var(--preview); border-radius: 2px; transition: width 0.1s linear; }
+.preview-target { position: absolute; top: -2px; bottom: -2px; width: 2px; background: #fff; border-radius: 1px; }
+.preview-time { font-family: var(--mono); font-size: 10px; color: var(--preview); white-space: nowrap; }
+.preview-label { font-size: 10px; font-weight: 600; color: var(--preview); letter-spacing: 0.06em; }
+
+/* ── Side pane ───────────────────────────────────────────────── */
+.side-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--panel); }
+.side-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.side-tab {
+  flex: 1; padding: 10px; text-align: center; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.06em; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.side-tab:hover { color: var(--text); background: var(--card); }
+.side-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-content { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.tab-content.active { display: flex; }
+
+/* ── Segments tab ────────────────────────────────────────────── */
+.seg-header { padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+.seg-header .speed-control { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.seg-header .speed-control label { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.seg-header .speed-control select {
+  background: var(--card); border: 1px solid var(--border); color: var(--text);
+  font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 3px; cursor: pointer;
+}
+.seg-list { flex: 1; overflow-y: auto; padding: 8px; }
+.seg-list::-webkit-scrollbar { width: 4px; }
+.seg-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.seg-card {
+  background: var(--card); border-radius: var(--radius); margin-bottom: 6px;
+  padding: 10px 12px; border: 1px solid transparent; transition: all 0.12s; cursor: pointer;
+}
+.seg-card:hover { border-color: var(--border2); }
+.seg-card.active { border-color: var(--accent); background: var(--accent-lo); }
+.seg-card.disabled { opacity: 0.45; }
+.seg-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.seg-idx { font-family: var(--mono); font-size: 10px; color: var(--accent); width: 16px; font-weight: 600; }
+.seg-times { display: flex; align-items: center; gap: 4px; flex: 1; }
+.seg-time-input {
+  font-family: var(--mono); font-size: 10px; color: var(--text); background: transparent;
+  border: 1px solid transparent; border-radius: 3px; padding: 2px 4px; width: 80px; outline: none;
+}
+.seg-time-input:hover { border-color: var(--border2); }
+.seg-time-input:focus { border-color: var(--accent); background: #1a1200; }
+.seg-dur { font-family: var(--mono); font-size: 9px; color: var(--dim); padding: 2px 5px; background: var(--bg); border-radius: 3px; }
+.seg-actions { display: flex; gap: 4px; }
+.seg-toggle {
+  width: 28px; height: 16px; border-radius: 8px; border: none; cursor: pointer;
+  background: var(--border); position: relative; transition: background 0.2s;
+}
+.seg-toggle.on { background: var(--success); }
+.seg-toggle::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px;
+  border-radius: 50%; background: #fff; transition: transform 0.2s;
+}
+.seg-toggle.on::after { transform: translateX(12px); }
+.seg-del { background: transparent; border: 1px solid #c9404030; color: var(--danger); padding: 2px 6px; border-radius: 3px; font-size: 10px; cursor: pointer; }
+.seg-del:hover { background: #c9404015; }
+.seg-label {
+  font-size: 11px; color: var(--muted); outline: none; border: none; background: transparent;
+  width: 100%; font-family: var(--sans); padding: 2px 0; border-bottom: 1px solid transparent;
+}
+.seg-label:focus { color: var(--text); border-bottom-color: var(--border2); }
+.seg-label::placeholder { color: var(--dim); }
+.seg-sub-preview { font-size: 10px; color: var(--dim); margin-top: 4px; line-height: 1.4; max-height: 28px; overflow: hidden; }
+.seg-footer { padding: 8px 12px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; gap: 8px; }
+.seg-footer .btn { flex: 1; justify-content: center; }
+
+/* ── Subtitles tab ───────────────────────────────────────────── */
+.sub-tabs { display: flex; gap: 4px; padding: 8px 12px; flex-shrink: 0; }
+.sub-tab {
+  padding: 4px 10px; border-radius: 4px; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 10px; font-weight: 600;
+  background: var(--bg); color: var(--muted); transition: all 0.15s;
+}
+.sub-tab.active { background: var(--accent-lo); color: var(--accent); }
+.sub-list { flex: 1; overflow-y: auto; padding: 8px; }
+.sub-list::-webkit-scrollbar { width: 4px; }
+.sub-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.sub-row {
+  background: var(--card); border-radius: var(--radius); margin-bottom: 5px;
+  padding: 8px 10px; border: 1px solid transparent; cursor: pointer; transition: all 0.12s;
+}
+.sub-row:hover { border-color: var(--border2); }
+.sub-row.active { border-color: var(--accent); background: var(--accent-lo); }
+.sub-row-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.sub-row-head .sub-idx { font-family: var(--mono); font-size: 9px; color: var(--muted); }
+.sub-row-head .sub-time { font-family: var(--mono); font-size: 9px; color: var(--dim); }
+.sub-text {
+  font-size: 11px; color: var(--text); line-height: 1.4; outline: none;
+  border: 1px solid transparent; border-radius: 3px; padding: 2px 4px; margin: -2px -4px;
+}
+.sub-text:hover { border-color: var(--border2); }
+.sub-text:focus { border-color: var(--accent); background: #1a1200; }
+
+#toast {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(12px);
+  background: var(--success); color: #fff; padding: 8px 16px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; opacity: 0; pointer-events: none; transition: all 0.3s; z-index: 1000;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Upload screen -->
+<div id="upload-screen">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+    <div class="upload-logo"><div class="dot"></div> CLIP EDITOR</div>
+    <div class="upload-subtitle">SEGMENT · ALIGN · PREVIEW · EXPORT</div>
+  </div>
+  <div class="upload-zones">
+    <div class="drop-zone" id="dz-video">
+      <input type="file" accept="video/*" onchange="fileChosen(event,'video')">
+      <div class="drop-icon">🎬</div>
+      <div class="drop-label">Video</div>
+      <div class="drop-status" id="dz-video-status"></div>
+    </div>
+    <div class="drop-zone optional" id="dz-audio">
+      <input type="file" accept="audio/*" onchange="fileChosen(event,'audio')">
+      <div class="drop-icon">🎙️</div>
+      <div class="drop-label">Audio</div>
+      <div class="drop-label-opt">optional</div>
+      <div class="drop-status" id="dz-audio-status"></div>
+    </div>
+    <div class="drop-zone optional" id="dz-srt-en">
+      <input type="file" accept=".srt,.txt" onchange="fileChosen(event,'srt-en')">
+      <div class="drop-icon">🇺🇸</div>
+      <div class="drop-label">EN Subs</div>
+      <div class="drop-label-opt">optional</div>
+      <div class="drop-status" id="dz-srt-en-status"></div>
+    </div>
+    <div class="drop-zone optional" id="dz-srt-zh">
+      <input type="file" accept=".srt,.txt" onchange="fileChosen(event,'srt-zh')">
+      <div class="drop-icon">🇨🇳</div>
+      <div class="drop-label">ZH Subs</div>
+      <div class="drop-label-opt">optional</div>
+      <div class="drop-status" id="dz-srt-zh-status"></div>
+    </div>
+    <div class="drop-zone preset" id="dz-decisions">
+      <input type="file" accept=".json" onchange="fileChosen(event,'decisions')">
+      <div class="drop-icon">📋</div>
+      <div class="drop-label">Decisions</div>
+      <div class="drop-label-opt">optional</div>
+      <div class="drop-status" id="dz-decisions-status"></div>
+    </div>
+  </div>
+  <div class="upload-hint">Only video is required · audio, subtitles & decisions are all optional<br>
+    <span style="color:var(--dim)">Without separate audio, the video's own audio track is used</span>
+  </div>
+  <button class="btn btn-accent" id="go-btn" style="display:none;padding:10px 32px;font-size:14px" onclick="openEditor()">Open Editor →</button>
+</div>
+
+<!-- Editor screen -->
+<div id="editor-screen">
+  <div class="header">
+    <div class="header-logo"><div class="dot"></div> CLIP EDITOR</div>
+    <div class="header-stats">
+      <span class="stat-badge" id="stat-keeps">0 segs</span>
+      <span class="stat-badge" id="stat-source">0s source</span>
+      <span class="stat-badge" id="stat-final">~0s final</span>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-preview" id="btn-preview" onclick="togglePreview()">▶ Preview</button>
+      <button class="btn btn-ghost" onclick="resetAll()">↩ Reset</button>
+      <button class="btn btn-accent" onclick="exportDecisions()">↓ Export</button>
+    </div>
+  </div>
+
+  <div class="preview-bar" id="preview-bar">
+    <span class="preview-label">PREVIEW</span>
+    <div class="preview-progress">
+      <div class="preview-fill" id="preview-fill"></div>
+      <div class="preview-target" id="preview-target"></div>
+    </div>
+    <span class="preview-time" id="preview-time">0:00 / 0:00</span>
+  </div>
+
+  <div class="main">
+    <div class="video-pane">
+      <div class="video-wrapper">
+        <video id="video-el" playsinline></video>
+        <audio id="audio-el"></audio>
+        <button class="sub-toggle" id="sub-toggle" onclick="toggleSubOverlay()" title="Toggle subtitle overlay">CC</button>
+        <div id="sub-overlay"><span id="sub-text-overlay"></span></div>
+      </div>
+
+      <div class="timeline-section">
+        <div class="timeline-bar" id="timeline-bar">
+          <div class="tl-playhead" id="tl-playhead"></div>
+          <div id="tl-mark-region" class="tl-mark-region" style="display:none"></div>
+          <div id="tl-segments"></div>
+        </div>
+        <div class="timeline-info">
+          <span class="mark-indicator empty" id="mark-indicator">[ I ] mark in · [ O ] mark out</span>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--dim)" id="tl-hover-time"></span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <div class="transport">
+          <button class="play-btn" onclick="togglePlay()">
+            <svg id="play-icon" viewBox="0 0 10 12" fill="currentColor"><polygon points="0,0 10,6 0,12"/></svg>
+            <svg id="pause-icon" viewBox="0 0 10 12" fill="currentColor" style="display:none"><rect x="0" y="0" width="3.5" height="12"/><rect x="6.5" y="0" width="3.5" height="12"/></svg>
+          </button>
+          <div class="scrubber-wrap">
+            <input type="range" id="scrubber" min="0" max="1000" value="0" oninput="onScrubInput(this.value)" onchange="onScrubChange(this.value)">
+            <span class="time-display" id="time-display">0:00 / 0:00</span>
+          </div>
+        </div>
+        <div class="offset-row" id="audio-offset-row">
+          <span class="offset-label">audio off</span>
+          <input type="range" id="audio-offset" min="-10" max="10" value="0" step="0.1" oninput="onAudioOffset(this.value)">
+          <span class="offset-val zero" id="audio-offset-val">0.0s</span>
+        </div>
+        <div class="offset-row">
+          <span class="offset-label">sub off</span>
+          <input type="range" id="sub-offset" min="-10" max="10" value="0" step="0.1" oninput="onSubOffset(this.value)">
+          <span class="offset-val zero" id="sub-offset-val">0.0s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-pane">
+      <div class="side-tabs">
+        <div class="side-tab active" id="stab-segments" onclick="switchSideTab('segments')">SEGMENTS</div>
+        <div class="side-tab" id="stab-subtitles" onclick="switchSideTab('subtitles')">SUBTITLES</div>
+      </div>
+
+      <!-- Segments tab -->
+      <div class="tab-content active" id="tc-segments">
+        <div class="seg-header">
+          <span style="font-size:10px;color:var(--muted);font-family:var(--mono)" id="seg-summary">0 segments</span>
+          <div class="speed-control">
+            <label>speed</label>
+            <select id="speed-select" onchange="onSpeedChange(this.value)">
+              <option value="1.0">1.0x</option>
+              <option value="1.15">1.15x</option>
+              <option value="1.25" selected>1.25x</option>
+              <option value="1.5">1.5x</option>
+            </select>
+          </div>
+        </div>
+        <div class="seg-list" id="seg-list"></div>
+        <div class="seg-footer">
+          <button class="btn btn-ghost" onclick="markIn()">[ I ] In</button>
+          <button class="btn btn-ghost" onclick="markOut()">[ O ] Out</button>
+          <button class="btn btn-ghost" onclick="addAtPlayhead()">+ Add 5s</button>
+        </div>
+      </div>
+
+      <!-- Subtitles tab -->
+      <div class="tab-content" id="tc-subtitles">
+        <div class="sub-tabs">
+          <button class="sub-tab active" id="subtab-en" onclick="switchSubTab('en')">EN</button>
+          <button class="sub-tab" id="subtab-zh" onclick="switchSubTab('zh')">中文</button>
+        </div>
+        <div class="sub-list" id="sub-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+// ── State ─────────────────────────────────────────────────────
+const state = {
+  videoURL: null, audioURL: null,
+  subtitles_en: [], subtitles_zh: [],
+  segments: [],
+  audioOffset: 0, subOffset: 0,
+  speed: 1.25,
+  markInTime: null,
+  previewActive: false, previewSegIdx: 0, previewSegs: [],
+  sideTab: 'segments', subTab: 'en',
+  nextId: 1, scrubbing: false, dragging: null,
+  selectedSegId: null, clipTitle: '',
+  hasAudio: false, showSubs: false,
+};
+const loaded = { video: false, audio: false, 'srt-en': false, 'srt-zh': false, decisions: false };
+
+// ── Elements ──────────────────────────────────────────────────
+const videoEl = document.getElementById('video-el');
+const audioEl = document.getElementById('audio-el');
+const scrubber = document.getElementById('scrubber');
+const timeDisp = document.getElementById('time-display');
+const playIcon = document.getElementById('play-icon');
+const pauseIcon = document.getElementById('pause-icon');
+const tlBar = document.getElementById('timeline-bar');
+const tlPlayhead = document.getElementById('tl-playhead');
+const tlSegments = document.getElementById('tl-segments');
+
+// ── Utils ─────────────────────────────────────────────────────
+function clearChildren(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+function p2(n) { return String(Math.floor(n)).padStart(2,'0'); }
+function p3(n) { return String(Math.floor(n)).padStart(3,'0'); }
+function secToTS(sec) {
+  if (!isFinite(sec) || sec < 0) sec = 0;
+  const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=Math.floor(sec%60), ms=Math.round((sec-Math.floor(sec))*1000);
+  return p2(h)+':'+p2(m)+':'+p2(s)+','+p3(ms);
+}
+function tsToSec(ts) {
+  const clean = String(ts).trim().replace(',','.');
+  const parts = clean.split(':').map(Number);
+  if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+  if (parts.length === 2) return parts[0]*60 + parts[1];
+  return parts[0] || 0;
+}
+function fmtShort(sec) {
+  if (!isFinite(sec)) return '0:00';
+  const m = Math.floor(sec/60), s = Math.floor(sec%60);
+  return m + ':' + p2(s);
+}
+function fmtDur(sec) { return sec.toFixed(1) + 's'; }
+
+// ── SRT Parser ────────────────────────────────────────────────
+function parseSRT(text) {
+  const blocks = text.trim().split(/\n\n+/), result = [];
+  for (const block of blocks) {
+    const lines = block.trim().split('\n');
+    if (lines.length < 3) continue;
+    const m = lines[1].match(/(\d+:\d+:\d+[,\.]\d+)\s*-->\s*(\d+:\d+:\d+[,\.]\d+)/);
+    if (!m) continue;
+    result.push({ id: state.nextId++, start: tsToSec(m[1]), end: tsToSec(m[2]), text: lines.slice(2).join(' ').trim() });
+  }
+  return result;
+}
+
+// ── File handling ─────────────────────────────────────────────
+['video','audio','srt-en','srt-zh','decisions'].forEach(function(type) {
+  const dz = document.getElementById('dz-' + type);
+  if (!dz) return;
+  dz.addEventListener('dragover', function(e) { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', function() { dz.classList.remove('dragover'); });
+  dz.addEventListener('drop', function(e) { e.preventDefault(); dz.classList.remove('dragover'); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0], type); });
+});
+
+function fileChosen(e, type) { if (e.target.files[0]) handleFile(e.target.files[0], type); }
+
+function handleFile(file, type) {
+  const dz = document.getElementById('dz-' + type);
+  const st = document.getElementById('dz-' + type + '-status');
+  const name = file.name.length > 18 ? file.name.slice(0,16) + '…' : file.name;
+
+  if (type === 'decisions') {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const json = JSON.parse(ev.target.result);
+        loadDecisions(json);
+        loaded.decisions = true;
+        dz.classList.add('loaded'); st.textContent = '✓ ' + name;
+      } catch(err) { alert('Invalid JSON: ' + err.message); }
+    };
+    reader.readAsText(file); return;
+  }
+  if (type === 'srt-en' || type === 'srt-zh') {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      if (type === 'srt-en') state.subtitles_en = parseSRT(ev.target.result);
+      else state.subtitles_zh = parseSRT(ev.target.result);
+      loaded[type] = true; dz.classList.add('loaded'); st.textContent = '✓ ' + name;
+      checkReady();
+    };
+    reader.readAsText(file); return;
+  }
+  if (type === 'video') { state.videoURL = URL.createObjectURL(file); loaded.video = true; }
+  if (type === 'audio') { state.audioURL = URL.createObjectURL(file); loaded.audio = true; }
+  dz.classList.add('loaded'); st.textContent = '✓ ' + name;
+  checkReady();
+}
+
+function loadDecisions(json) {
+  if (json.keeps && json.keeps.length) {
+    state.segments = json.keeps.map(function(k) {
+      return { id: state.nextId++, start: k.start, end: k.end, label: k.label || '', enabled: true };
+    });
+  }
+  if (json.subtitles_en && json.subtitles_en.length) {
+    state.subtitles_en = json.subtitles_en.map(function(s) {
+      return { id: s.id || state.nextId++, start: s.start, end: s.end, text: s.text };
+    });
+  }
+  if (json.subtitles_zh && json.subtitles_zh.length) {
+    state.subtitles_zh = json.subtitles_zh.map(function(s) {
+      return { id: s.id || state.nextId++, start: s.start, end: s.end, text: s.text };
+    });
+  }
+  if (json.speed) { state.speed = json.speed; document.getElementById('speed-select').value = String(json.speed); }
+  if (json.audio_offset_seconds != null) { state.audioOffset = json.audio_offset_seconds; document.getElementById('audio-offset').value = json.audio_offset_seconds; onAudioOffset(json.audio_offset_seconds); }
+  if (json.subtitle_offset_seconds != null) { state.subOffset = json.subtitle_offset_seconds; document.getElementById('sub-offset').value = json.subtitle_offset_seconds; onSubOffset(json.subtitle_offset_seconds); }
+  if (json.title) state.clipTitle = json.title;
+}
+
+function checkReady() {
+  if (loaded.video) document.getElementById('go-btn').style.display = '';
+}
+
+function openEditor() {
+  if (!loaded.video) return;
+  videoEl.src = state.videoURL;
+  state.hasAudio = loaded.audio;
+  if (state.hasAudio) {
+    videoEl.muted = true;
+    audioEl.src = state.audioURL;
+  } else {
+    videoEl.muted = false;
+    document.getElementById('audio-offset-row').style.display = 'none';
+  }
+  document.getElementById('sub-toggle').classList.add('off');
+  if (loaded['srt-en'] || loaded['srt-zh']) {
+    state.showSubs = true;
+    document.getElementById('sub-toggle').classList.remove('off');
+  }
+  document.getElementById('upload-screen').style.display = 'none';
+  document.getElementById('editor-screen').style.display = 'flex';
+  videoEl.addEventListener('loadedmetadata', function() {
+    scrubber.max = String(Math.floor(videoEl.duration * 10));
+    var isPortrait = videoEl.videoHeight > videoEl.videoWidth;
+    if (isPortrait) document.querySelector('.video-pane').classList.add('portrait');
+    renderTimeline(); updateStats();
+  }, { once: true });
+  renderSegList();
+  renderSubList();
+}
+
+function resetAll() {
+  if (!confirm('Reset all segments and settings?')) return;
+  location.reload();
+}
+
+// ── Side tabs ─────────────────────────────────────────────────
+function switchSideTab(tab) {
+  state.sideTab = tab;
+  document.getElementById('stab-segments').className = 'side-tab' + (tab === 'segments' ? ' active' : '');
+  document.getElementById('stab-subtitles').className = 'side-tab' + (tab === 'subtitles' ? ' active' : '');
+  document.getElementById('tc-segments').className = 'tab-content' + (tab === 'segments' ? ' active' : '');
+  document.getElementById('tc-subtitles').className = 'tab-content' + (tab === 'subtitles' ? ' active' : '');
+}
+function switchSubTab(tab) {
+  state.subTab = tab;
+  document.getElementById('subtab-en').className = 'sub-tab' + (tab === 'en' ? ' active' : '');
+  document.getElementById('subtab-zh').className = 'sub-tab' + (tab === 'zh' ? ' active' : '');
+  renderSubList();
+}
+
+// ── Playback ──────────────────────────────────────────────────
+var SYNC_THRESHOLD = 0.12;
+function togglePlay() { videoEl.paused ? videoEl.play() : videoEl.pause(); }
+
+videoEl.addEventListener('play', function() { playIcon.style.display = 'none'; pauseIcon.style.display = ''; syncAudio(); });
+videoEl.addEventListener('pause', function() { playIcon.style.display = ''; pauseIcon.style.display = 'none'; if (state.hasAudio) audioEl.pause(); });
+videoEl.addEventListener('ended', function() { playIcon.style.display = ''; pauseIcon.style.display = 'none'; if (state.hasAudio) audioEl.pause(); if (state.previewActive) endPreview(); });
+videoEl.addEventListener('seeked', function() { if (!state.scrubbing) syncAudio(); });
+videoEl.addEventListener('timeupdate', onTimeUpdate);
+videoEl.addEventListener('loadedmetadata', function() { scrubber.max = String(Math.floor(videoEl.duration * 10)); });
+
+function syncAudio() {
+  if (!state.hasAudio) return;
+  var target = videoEl.currentTime - state.audioOffset;
+  if (target < 0) { if (!audioEl.paused) audioEl.pause(); audioEl.currentTime = 0; return; }
+  if (audioEl.duration && target > audioEl.duration) { audioEl.pause(); return; }
+  if (Math.abs(audioEl.currentTime - target) > SYNC_THRESHOLD) audioEl.currentTime = Math.max(0, target);
+  if (!videoEl.paused && audioEl.paused) audioEl.play().catch(function(){});
+}
+
+function onTimeUpdate() {
+  if (state.previewActive) {
+    var seg = state.previewSegs[state.previewSegIdx];
+    if (seg && videoEl.currentTime >= seg.end - 0.05) {
+      state.previewSegIdx++;
+      if (state.previewSegIdx >= state.previewSegs.length) { endPreview(); return; }
+      videoEl.currentTime = state.previewSegs[state.previewSegIdx].start;
+      syncAudio();
+    }
+    updatePreviewProgress();
+  }
+  if (!state.scrubbing) { syncAudio(); updateScrubber(); }
+  updateSubOverlay();
+  renderTimelinePlayhead();
+  updateMarkRegion();
+}
+
+function updateScrubber() {
+  if (state.scrubbing || !isFinite(videoEl.duration)) return;
+  scrubber.value = String(Math.floor((videoEl.currentTime / videoEl.duration) * Number(scrubber.max)));
+  timeDisp.textContent = fmtShort(videoEl.currentTime) + ' / ' + fmtShort(videoEl.duration || 0);
+}
+function onScrubInput(val) { state.scrubbing = true; }
+function onScrubChange(val) {
+  state.scrubbing = false;
+  videoEl.currentTime = (Number(val) / Number(scrubber.max)) * (videoEl.duration || 0);
+  syncAudio();
+}
+function onAudioOffset(val) {
+  state.audioOffset = Number(val);
+  var el = document.getElementById('audio-offset-val');
+  el.textContent = (Number(val) >= 0 ? '+' : '') + Number(val).toFixed(1) + 's';
+  el.className = 'offset-val ' + (Number(val) > 0 ? 'pos' : Number(val) < 0 ? 'neg' : 'zero');
+  syncAudio();
+}
+function onSubOffset(val) {
+  state.subOffset = Number(val);
+  var el = document.getElementById('sub-offset-val');
+  el.textContent = (Number(val) >= 0 ? '+' : '') + Number(val).toFixed(1) + 's';
+  el.className = 'offset-val ' + (Number(val) > 0 ? 'pos' : Number(val) < 0 ? 'neg' : 'zero');
+  renderSubList();
+  renderSegList();
+}
+
+// ── Subtitle overlay ──────────────────────────────────────────
+function getActiveSub(lang) {
+  var subs = lang === 'zh' ? state.subtitles_zh : state.subtitles_en;
+  var t = videoEl.currentTime - state.subOffset;
+  return subs.find(function(s) { return t >= s.start && t <= s.end; }) || null;
+}
+function truncateSub(text, maxLen) {
+  if (!text || text.length <= maxLen) return text;
+  var cut = text.lastIndexOf(' ', maxLen);
+  if (cut < maxLen * 0.5) cut = maxLen;
+  return text.slice(0, cut) + '…';
+}
+function toggleSubOverlay() {
+  state.showSubs = !state.showSubs;
+  var btn = document.getElementById('sub-toggle');
+  btn.classList.toggle('off', !state.showSubs);
+  if (!state.showSubs) document.getElementById('sub-overlay').style.display = 'none';
+}
+function updateSubOverlay() {
+  if (!state.showSubs) { document.getElementById('sub-overlay').style.display = 'none'; return; }
+  var lang = state.subTab === 'zh' ? 'zh' : 'en';
+  var sub = getActiveSub(lang);
+  var el = document.getElementById('sub-text-overlay');
+  var overlay = document.getElementById('sub-overlay');
+  el.textContent = sub ? truncateSub(sub.text, 60) : '';
+  el.className = lang === 'zh' ? 'zh' : '';
+  overlay.style.display = sub ? 'block' : 'none';
+}
+
+// ── Timeline ──────────────────────────────────────────────────
+function renderTimeline() {
+  clearChildren(tlSegments);
+  var dur = videoEl.duration || 1;
+  var w = tlBar.clientWidth;
+  state.segments.forEach(function(seg, i) {
+    var left = (seg.start / dur) * w;
+    var width = Math.max(((seg.end - seg.start) / dur) * w, 6);
+    var block = document.createElement('div');
+    block.className = 'tl-segment' + (!seg.enabled ? ' disabled' : '') + (seg.id === state.selectedSegId ? ' active' : '');
+    block.style.left = left + 'px'; block.style.width = width + 'px';
+    block.dataset.id = String(seg.id);
+    block.addEventListener('mousedown', function(e) {
+      if (e.target.classList.contains('tl-handle')) return;
+      e.stopPropagation();
+      state.selectedSegId = seg.id;
+      videoEl.currentTime = seg.start;
+      syncAudio();
+      renderTimeline(); renderSegList();
+    });
+    var lh = document.createElement('div'); lh.className = 'tl-handle tl-handle-left';
+    lh.addEventListener('mousedown', function(e) { e.stopPropagation(); startDrag(e, seg.id, 'start'); });
+    var rh = document.createElement('div'); rh.className = 'tl-handle tl-handle-right';
+    rh.addEventListener('mousedown', function(e) { e.stopPropagation(); startDrag(e, seg.id, 'end'); });
+    var label = document.createElement('span'); label.className = 'tl-label'; label.textContent = String(i + 1);
+    block.appendChild(lh); block.appendChild(rh); block.appendChild(label);
+    tlSegments.appendChild(block);
+  });
+}
+
+function renderTimelinePlayhead() {
+  var dur = videoEl.duration || 1;
+  var pct = (videoEl.currentTime / dur) * 100;
+  tlPlayhead.style.left = pct + '%';
+}
+
+tlBar.addEventListener('click', function(e) {
+  if (e.target.closest('.tl-segment')) return;
+  var rect = tlBar.getBoundingClientRect();
+  var pct = (e.clientX - rect.left) / rect.width;
+  videoEl.currentTime = pct * (videoEl.duration || 0);
+  syncAudio();
+});
+tlBar.addEventListener('mousemove', function(e) {
+  var rect = tlBar.getBoundingClientRect();
+  var pct = (e.clientX - rect.left) / rect.width;
+  document.getElementById('tl-hover-time').textContent = fmtShort(pct * (videoEl.duration || 0));
+});
+tlBar.addEventListener('mouseleave', function() { document.getElementById('tl-hover-time').textContent = ''; });
+
+// ── Timeline drag ─────────────────────────────────────────────
+function startDrag(e, segId, edge) {
+  e.preventDefault();
+  state.dragging = { segId: segId, edge: edge, startX: e.clientX };
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', endDrag);
+}
+function onDrag(e) {
+  if (!state.dragging) return;
+  var rect = tlBar.getBoundingClientRect();
+  var dur = videoEl.duration || 1;
+  var time = ((e.clientX - rect.left) / rect.width) * dur;
+  var seg = state.segments.find(function(s) { return s.id === state.dragging.segId; });
+  if (!seg) return;
+  if (state.dragging.edge === 'start') { seg.start = Math.max(0, Math.min(time, seg.end - 0.2)); }
+  else { seg.end = Math.min(dur, Math.max(time, seg.start + 0.2)); }
+  renderTimeline(); updateStats();
+}
+function endDrag() {
+  state.dragging = null;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', endDrag);
+  renderSegList();
+}
+
+// ── Segment management ────────────────────────────────────────
+function addSegment(start, end, label) {
+  var seg = { id: state.nextId++, start: start, end: end, label: label || '', enabled: true };
+  state.segments.push(seg);
+  state.segments.sort(function(a, b) { return a.start - b.start; });
+  state.selectedSegId = seg.id;
+  renderTimeline(); renderSegList(); updateStats();
+  return seg;
+}
+
+function removeSegment(id) {
+  state.segments = state.segments.filter(function(s) { return s.id !== id; });
+  if (state.selectedSegId === id) state.selectedSegId = null;
+  renderTimeline(); renderSegList(); updateStats();
+}
+
+function toggleSegment(id) {
+  var seg = state.segments.find(function(s) { return s.id === id; });
+  if (seg) seg.enabled = !seg.enabled;
+  renderTimeline(); renderSegList(); updateStats();
+}
+
+function markIn() {
+  state.markInTime = videoEl.currentTime;
+  var el = document.getElementById('mark-indicator');
+  el.textContent = 'IN: ' + fmtShort(state.markInTime) + ' — press [ O ] to set out';
+  el.className = 'mark-indicator';
+  updateMarkRegion();
+}
+
+function markOut() {
+  if (state.markInTime == null) { showToast('Press [ I ] first to mark in'); return; }
+  var start = Math.min(state.markInTime, videoEl.currentTime);
+  var end = Math.max(state.markInTime, videoEl.currentTime);
+  if (end - start < 0.3) { showToast('Segment too short'); return; }
+  addSegment(start, end, '');
+  state.markInTime = null;
+  document.getElementById('mark-indicator').textContent = '[ I ] mark in · [ O ] mark out';
+  document.getElementById('mark-indicator').className = 'mark-indicator empty';
+  document.getElementById('tl-mark-region').style.display = 'none';
+  showToast('Segment added: ' + fmtDur(end - start));
+}
+
+function updateMarkRegion() {
+  var region = document.getElementById('tl-mark-region');
+  if (state.markInTime == null) { region.style.display = 'none'; return; }
+  var dur = videoEl.duration || 1;
+  var left = (state.markInTime / dur) * 100;
+  var width = ((videoEl.currentTime - state.markInTime) / dur) * 100;
+  region.style.display = 'block';
+  region.style.left = Math.min(left, left + width) + '%';
+  region.style.width = Math.abs(width) + '%';
+}
+
+function addAtPlayhead() {
+  var start = videoEl.currentTime;
+  var end = Math.min(start + 5, videoEl.duration || start + 5);
+  addSegment(start, end, '');
+  showToast('5s segment added at ' + fmtShort(start));
+}
+
+function renderSegList() {
+  var list = document.getElementById('seg-list');
+  clearChildren(list);
+  state.segments.forEach(function(seg, i) {
+    var card = document.createElement('div');
+    card.className = 'seg-card' + (seg.id === state.selectedSegId ? ' active' : '') + (!seg.enabled ? ' disabled' : '');
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('input,button,.seg-toggle,.seg-del')) return;
+      state.selectedSegId = seg.id;
+      videoEl.currentTime = seg.start; syncAudio();
+      renderTimeline(); renderSegList();
+    });
+
+    var head = document.createElement('div'); head.className = 'seg-card-head';
+    var idx = document.createElement('span'); idx.className = 'seg-idx'; idx.textContent = String(i + 1);
+    var times = document.createElement('div'); times.className = 'seg-times';
+    var startIn = document.createElement('input'); startIn.type = 'text'; startIn.className = 'seg-time-input';
+    startIn.value = secToTS(seg.start);
+    startIn.addEventListener('blur', function() { seg.start = tsToSec(startIn.value); startIn.value = secToTS(seg.start); renderTimeline(); updateStats(); });
+    startIn.addEventListener('keydown', function(e) { if (e.key === 'Enter') startIn.blur(); });
+    var arrow = document.createElement('span'); arrow.style.cssText = 'font-size:9px;color:var(--dim)'; arrow.textContent = '→';
+    var endIn = document.createElement('input'); endIn.type = 'text'; endIn.className = 'seg-time-input';
+    endIn.value = secToTS(seg.end);
+    endIn.addEventListener('blur', function() { seg.end = tsToSec(endIn.value); endIn.value = secToTS(seg.end); renderTimeline(); updateStats(); });
+    endIn.addEventListener('keydown', function(e) { if (e.key === 'Enter') endIn.blur(); });
+    times.appendChild(startIn); times.appendChild(arrow); times.appendChild(endIn);
+
+    var dur = document.createElement('span'); dur.className = 'seg-dur'; dur.textContent = fmtDur(seg.end - seg.start);
+    var actions = document.createElement('div'); actions.className = 'seg-actions';
+    var toggle = document.createElement('button'); toggle.className = 'seg-toggle' + (seg.enabled ? ' on' : '');
+    toggle.addEventListener('click', function(e) { e.stopPropagation(); toggleSegment(seg.id); });
+    var del = document.createElement('button'); del.className = 'seg-del'; del.textContent = '✕';
+    del.addEventListener('click', function(e) { e.stopPropagation(); removeSegment(seg.id); });
+    actions.appendChild(toggle); actions.appendChild(del);
+    head.appendChild(idx); head.appendChild(times); head.appendChild(dur); head.appendChild(actions);
+
+    var labelIn = document.createElement('input'); labelIn.type = 'text'; labelIn.className = 'seg-label';
+    labelIn.value = seg.label; labelIn.placeholder = 'Add label...';
+    labelIn.addEventListener('blur', function() { seg.label = labelIn.value; });
+
+    var subPrev = document.createElement('div'); subPrev.className = 'seg-sub-preview';
+    var off = state.subOffset;
+    var matchingSubs = state.subtitles_en.filter(function(s) { return (s.start + off) < seg.end && (s.end + off) > seg.start; });
+    var previewText = matchingSubs.map(function(s) { return s.text; }).join(' ');
+    subPrev.textContent = previewText.slice(0, 120) + (previewText.length > 120 ? '…' : '');
+
+    card.appendChild(head); card.appendChild(labelIn); card.appendChild(subPrev);
+    list.appendChild(card);
+  });
+  document.getElementById('seg-summary').textContent = state.segments.filter(function(s) { return s.enabled; }).length + '/' + state.segments.length + ' segments';
+}
+
+// ── Subtitles list ────────────────────────────────────────────
+function renderSubList() {
+  var list = document.getElementById('sub-list');
+  clearChildren(list);
+  var subs = state.subTab === 'zh' ? state.subtitles_zh : state.subtitles_en;
+  subs.forEach(function(sub, i) {
+    var row = document.createElement('div'); row.className = 'sub-row';
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('.sub-text')) return;
+      videoEl.currentTime = sub.start + state.subOffset; syncAudio();
+    });
+    var head = document.createElement('div'); head.className = 'sub-row-head';
+    var idx = document.createElement('span'); idx.className = 'sub-idx'; idx.textContent = String(i + 1);
+    var time = document.createElement('span'); time.className = 'sub-time';
+    time.textContent = fmtShort(sub.start + state.subOffset) + ' → ' + fmtShort(sub.end + state.subOffset);
+    head.appendChild(idx); head.appendChild(time);
+    var text = document.createElement('div'); text.className = 'sub-text'; text.contentEditable = 'true';
+    text.spellcheck = false; text.textContent = sub.text;
+    text.addEventListener('blur', function() { sub.text = text.textContent.trim(); });
+    row.appendChild(head); row.appendChild(text);
+    list.appendChild(row);
+  });
+}
+
+// ── Stats ─────────────────────────────────────────────────────
+function updateStats() {
+  var enabled = state.segments.filter(function(s) { return s.enabled; });
+  var sourceTotal = enabled.reduce(function(sum, s) { return sum + (s.end - s.start); }, 0);
+  var finalEst = sourceTotal / state.speed + 4;
+  var targetDur = 60;
+
+  document.getElementById('stat-keeps').textContent = enabled.length + ' segs';
+  document.getElementById('stat-source').textContent = fmtDur(sourceTotal) + ' source';
+
+  var finalEl = document.getElementById('stat-final');
+  finalEl.textContent = '~' + Math.round(finalEst) + 's final';
+  finalEl.className = 'stat-badge ' + (finalEst > targetDur + 3 ? 'over' : finalEst < targetDur - 5 ? 'under' : 'good');
+
+  var previewDur = sourceTotal / state.speed;
+  var target60pct = previewDur > 0 ? Math.min((targetDur - 4) / previewDur * 100, 100) : 0;
+  document.getElementById('preview-target').style.left = target60pct + '%';
+}
+
+function onSpeedChange(val) {
+  state.speed = Number(val);
+  updateStats();
+}
+
+// ── Preview ───────────────────────────────────────────────────
+function togglePreview() {
+  if (state.previewActive) { endPreview(); return; }
+  state.previewSegs = state.segments.filter(function(s) { return s.enabled; }).sort(function(a, b) { return a.start - b.start; });
+  if (state.previewSegs.length === 0) { showToast('No segments enabled'); return; }
+  state.previewActive = true;
+  state.previewSegIdx = 0;
+  videoEl.currentTime = state.previewSegs[0].start;
+  videoEl.playbackRate = state.speed;
+  if (state.hasAudio) audioEl.playbackRate = state.speed;
+  videoEl.play();
+  document.getElementById('btn-preview').classList.add('active');
+  document.getElementById('btn-preview').textContent = '■ Stop';
+  document.getElementById('preview-bar').classList.add('active');
+  updateStats();
+}
+
+function endPreview() {
+  state.previewActive = false;
+  videoEl.playbackRate = 1;
+  if (state.hasAudio) audioEl.playbackRate = 1;
+  videoEl.pause();
+  document.getElementById('btn-preview').classList.remove('active');
+  document.getElementById('btn-preview').textContent = '▶ Preview';
+  document.getElementById('preview-bar').classList.remove('active');
+}
+
+function updatePreviewProgress() {
+  if (!state.previewActive || state.previewSegs.length === 0) return;
+  var elapsed = 0;
+  for (var i = 0; i < state.previewSegIdx; i++) {
+    elapsed += state.previewSegs[i].end - state.previewSegs[i].start;
+  }
+  var cur = state.previewSegs[state.previewSegIdx];
+  if (cur) elapsed += Math.max(0, videoEl.currentTime - cur.start);
+  var total = state.previewSegs.reduce(function(s, seg) { return s + (seg.end - seg.start); }, 0);
+  var pct = total > 0 ? (elapsed / total) * 100 : 0;
+  document.getElementById('preview-fill').style.width = pct + '%';
+  document.getElementById('preview-time').textContent = fmtShort(elapsed / state.speed) + ' / ' + fmtShort(total / state.speed);
+}
+
+// ── Export ────────────────────────────────────────────────────
+function exportDecisions() {
+  var off = state.subOffset;
+  var out = {
+    title: state.clipTitle,
+    speed: state.speed,
+    audio_offset_seconds: Number(state.audioOffset.toFixed(3)),
+    subtitle_offset_seconds: 0,
+    keeps: state.segments.filter(function(s) { return s.enabled; }).sort(function(a, b) { return a.start - b.start; }).map(function(s) {
+      return { start: Number(s.start.toFixed(3)), end: Number(s.end.toFixed(3)), label: s.label };
+    }),
+    subtitles_en: state.subtitles_en.map(function(s) { return { id: s.id, start: Number((s.start + off).toFixed(3)), end: Number((s.end + off).toFixed(3)), text: s.text }; }),
+    subtitles_zh: state.subtitles_zh.map(function(s) { return { id: s.id, start: Number((s.start + off).toFixed(3)), end: Number((s.end + off).toFixed(3)), text: s.text }; }),
+  };
+  var blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'clip_decisions.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  var keepsDur = out.keeps.reduce(function(s, k) { return s + (k.end - k.start); }, 0);
+  showToast('Exported: ' + out.keeps.length + ' segments, ~' + Math.round(keepsDur / state.speed + 4) + 's final');
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+function showToast(msg) {
+  var t = document.getElementById('toast'); t.textContent = msg;
+  t.classList.add('show'); setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+
+// ── Keyboard shortcuts ────────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.isContentEditable) return;
+  if (e.code === 'Space') { e.preventDefault(); state.previewActive ? endPreview() : togglePlay(); }
+  if (e.code === 'ArrowLeft') { e.preventDefault(); videoEl.currentTime = Math.max(0, videoEl.currentTime - (e.shiftKey ? 0.5 : 2)); syncAudio(); }
+  if (e.code === 'ArrowRight') { e.preventDefault(); videoEl.currentTime = Math.min(videoEl.duration || 0, videoEl.currentTime + (e.shiftKey ? 0.5 : 2)); syncAudio(); }
+  if (e.key === 'i' || e.key === 'I' || e.code === 'BracketLeft') markIn();
+  if (e.key === 'o' || e.key === 'O' || e.code === 'BracketRight') markOut();
+  if (e.key === 'p' || e.key === 'P') togglePreview();
+  if (e.key === '1') switchSideTab('segments');
+  if (e.key === '2') switchSideTab('subtitles');
+});
+
+// ── Window resize ─────────────────────────────────────────────
+window.addEventListener('resize', function() { if (videoEl.duration) renderTimeline(); });
+</script>
+</body>
+</html>
